@@ -11,7 +11,6 @@ class LeaveCreate(BaseModel):
     reason: str = ""
 
 
-
 class LeaveOut(LeaveCreate):
     id: UUID
     employee_id: UUID
@@ -23,6 +22,7 @@ class LeaveOut(LeaveCreate):
     approved_by: str | None = None
     cancellation_requested: bool = False
     cancellation_approved: bool = False
+
 
 class LeaveListResponse(BaseModel):
     data: list[LeaveOut]

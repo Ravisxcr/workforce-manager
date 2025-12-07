@@ -10,7 +10,6 @@ class DocumentUpload(BaseModel):
     description: Optional[str] = None
 
 
-
 class DocumentOut(BaseModel):
     id: str
     employee_id: str

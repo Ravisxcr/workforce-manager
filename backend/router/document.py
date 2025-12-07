@@ -1,18 +1,16 @@
 import os
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from db.session import get_db
-
 from models.user import Document, User
 from schemas.document import DocumentOut, DocumentVerify
-from services.auth import get_current_active_user, admin_required
+from services.auth import admin_required, get_current_active_user
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads")
 router = APIRouter()
-
 
 
 @router.post("/upload", response_model=DocumentOut)
@@ -44,10 +42,12 @@ def upload_document(
     except Exception as e:
         db.rollback()
         if "uq_employee_document_type" in str(e):
-            raise HTTPException(status_code=400, detail="Document of this type already uploaded for this employee.")
+            raise HTTPException(
+                status_code=400,
+                detail="Document of this type already uploaded for this employee.",
+            )
         raise
     return doc
-
 
 
 @router.patch("/{document_id}/verify", response_model=DocumentOut)
@@ -69,14 +69,12 @@ def verify_document(
     return doc
 
 
-
 @router.get("/my", response_model=list[DocumentOut])
 def get_my_documents(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
     return db.query(Document).filter(Document.employee_id == current_user.id).all()
-
 
 
 @router.get("/{document_id}/file")
@@ -98,6 +96,7 @@ def get_document_file(
     ext = os.path.splitext(file_path)[1].lower()
     media_type = "application/pdf" if ext == ".pdf" else "image/png"
     from fastapi.responses import FileResponse
+
     return FileResponse(
         file_path, media_type=media_type, filename=os.path.basename(file_path)
     )

@@ -3,8 +3,13 @@ from sqlalchemy.orm import Session
 
 from db.session import get_db
 from models.user import Employee, IdCard, User
-from schemas.employee import EmployeeCreate, EmployeeOut, EmployeeUpdate
-from schemas.employee import IdCardCreate, IdCardOut
+from schemas.employee import (
+    EmployeeCreate,
+    EmployeeOut,
+    EmployeeUpdate,
+    IdCardCreate,
+    IdCardOut,
+)
 from services.auth import admin_required, get_current_active_user
 
 router = APIRouter()
@@ -85,6 +90,7 @@ def get_id_card(
 ):
     cards = db.query(IdCard).filter(IdCard.employee_id == current_user.id).all()
     return cards
+
 
 # get all the manager with theri id and name
 @router.get("/managers", response_model=list[EmployeeOut])

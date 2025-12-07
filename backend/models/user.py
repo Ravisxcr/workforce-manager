@@ -1,8 +1,16 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import (Boolean, Column, Date, DateTime, ForeignKey, Integer,
-                        String, UniqueConstraint)
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -10,7 +18,7 @@ from db.base import Base, TimestampMixin
 
 
 # Employee table with references to admin (creator) and manager
-class Employee(Base,TimestampMixin):
+class Employee(Base, TimestampMixin):
     __tablename__ = "employees"
     id = Column(
         UUID(as_uuid=True),
@@ -81,7 +89,7 @@ class IdCard(Base, TimestampMixin):
 
 
 # Document table for upload, verification, audit, and approval tracking
-class Document(Base,TimestampMixin):
+class Document(Base, TimestampMixin):
     __tablename__ = "documents"
     __table_args__ = (
         UniqueConstraint(

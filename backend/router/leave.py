@@ -1,19 +1,23 @@
-from datetime import datetime, time
 import uuid
+from datetime import datetime, time
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func, case
 
-from db import session
 from db.session import get_db
 from models.claims import Leave
 from models.user import User
-from schemas.leave import LeaveCreate, LeaveOut, LeaveAnalyticsItem, LeaveAnalyticsResponse, LeaveListResponse
-from services.auth import get_current_active_user, admin_required
+from schemas.leave import (
+    LeaveAnalyticsItem,
+    LeaveAnalyticsResponse,
+    LeaveCreate,
+    LeaveListResponse,
+    LeaveOut,
+)
+from services.auth import admin_required, get_current_active_user
 
 router = APIRouter()
-
 
 
 @router.post("/", response_model=LeaveOut)
@@ -32,10 +36,12 @@ def create_leave(
     result = leave_obj.__dict__.copy()
     if hasattr(leave_obj, "id") and isinstance(leave_obj.id, (str, bytes)) is False:
         result["id"] = str(leave_obj.id)
-    if hasattr(leave_obj, "employee_id") and isinstance(leave_obj.employee_id, (str, bytes)) is False:
+    if (
+        hasattr(leave_obj, "employee_id")
+        and isinstance(leave_obj.employee_id, (str, bytes)) is False
+    ):
         result["employee_id"] = str(leave_obj.employee_id)
     return LeaveOut(**result)
-
 
 
 @router.get("/", response_model=LeaveListResponse)
@@ -48,21 +54,14 @@ def get_leaves(
     # Calculate days in SQL using julianday for SQLite
     days_expr = func.julianday(Leave.end_date) - func.julianday(Leave.start_date) + 1
     stmt = select(
-        func.sum(
-            case((Leave.type == "casual", days_expr), else_=0)
-        ).label("casual_leave"),
-
-        func.sum(
-            case((Leave.type == "sick", days_expr), else_=0)
-        ).label("sick_leave"),
-
-        func.sum(
-            case((Leave.type == "earned", days_expr), else_=0)
-        ).label("earned_leave"),
-    ).where(
-        Leave.employee_id == current_user.id,
-        Leave.status == "approved"
-    )
+        func.sum(case((Leave.type == "casual", days_expr), else_=0)).label(
+            "casual_leave"
+        ),
+        func.sum(case((Leave.type == "sick", days_expr), else_=0)).label("sick_leave"),
+        func.sum(case((Leave.type == "earned", days_expr), else_=0)).label(
+            "earned_leave"
+        ),
+    ).where(Leave.employee_id == current_user.id, Leave.status == "approved")
 
     result = db.execute(stmt).one()
 
@@ -71,11 +70,16 @@ def get_leaves(
         item = leave_obj.__dict__.copy()
         if hasattr(leave_obj, "id") and isinstance(leave_obj.id, (str, bytes)) is False:
             item["id"] = str(leave_obj.id)
-        if hasattr(leave_obj, "employee_id") and isinstance(leave_obj.employee_id, (str, bytes)) is False:
+        if (
+            hasattr(leave_obj, "employee_id")
+            and isinstance(leave_obj.employee_id, (str, bytes)) is False
+        ):
             item["employee_id"] = str(leave_obj.employee_id)
         approver_name = None
         if getattr(leave_obj, "approved_by_admin", None):
-            approver = db.query(User).filter(User.id == leave_obj.approved_by_admin).first()
+            approver = (
+                db.query(User).filter(User.id == leave_obj.approved_by_admin).first()
+            )
             if approver:
                 approver_name = approver.full_name or approver.email
         item["approved_by"] = approver_name
@@ -87,9 +91,8 @@ def get_leaves(
             "casual_leave": result.casual_leave or 0,
             "sick_leave": result.sick_leave or 0,
             "earned_leave": result.earned_leave or 0,
-        }
+        },
     }
-
 
 
 @router.put("/approve/{leave_id}", response_model=LeaveOut)
@@ -107,7 +110,10 @@ def approve_leave(
         result = leave_obj.__dict__.copy()
         if hasattr(leave_obj, "id") and isinstance(leave_obj.id, (str, bytes)) is False:
             result["id"] = str(leave_obj.id)
-        if hasattr(leave_obj, "employee_id") and isinstance(leave_obj.employee_id, (str, bytes)) is False:
+        if (
+            hasattr(leave_obj, "employee_id")
+            and isinstance(leave_obj.employee_id, (str, bytes)) is False
+        ):
             result["employee_id"] = str(leave_obj.employee_id)
         return LeaveOut(**result)
     return None
@@ -122,7 +128,11 @@ def request_leave_cancellation(
 ):
     try:
         leave_uuid = uuid.UUID(leave_id)
-        leave_obj = db.query(Leave).filter(Leave.id == leave_uuid, Leave.employee_id == current_user.id).first()
+        leave_obj = (
+            db.query(Leave)
+            .filter(Leave.id == leave_uuid, Leave.employee_id == current_user.id)
+            .first()
+        )
         now = datetime.now().date()
         current_time = datetime.now().time()
         if not leave_obj:
@@ -141,7 +151,6 @@ def request_leave_cancellation(
     except Exception as e:
         print(f"Error in cancellation request: {e}")
         raise HTTPException(status_code=400, detail=str(e))
-
 
 
 # Approve cancellation of leave

@@ -26,6 +26,7 @@ class Leave(Base, TimestampMixin):
         if self.start_date and self.end_date:
             return (self.end_date - self.start_date).days + 1
         return 0
+
     reason = Column(String, nullable=True)
     status = Column(String, default="pending")
     approved_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)

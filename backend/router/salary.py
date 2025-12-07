@@ -4,8 +4,12 @@ from sqlalchemy.orm import Session
 from db.session import get_db
 from models.salary import SalaryHistory, SalarySlip
 from models.user import User
-from schemas.salary import (SalaryHistoryCreate, SalaryHistoryOut,
-                            SalarySlipCreate, SalarySlipOut)
+from schemas.salary import (
+    SalaryHistoryCreate,
+    SalaryHistoryOut,
+    SalarySlipCreate,
+    SalarySlipOut,
+)
 from services.auth import get_current_active_user
 
 router = APIRouter()

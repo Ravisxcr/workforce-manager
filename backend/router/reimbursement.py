@@ -2,18 +2,21 @@ import os
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from db.session import get_db
 from models.claims import Reimbursement
 from models.user import User
-from schemas.reimbursement import (ReimbursementAnalytics, ReimbursementCreate,
-                                   ReimbursementOut, ReimbursementUpdateStatus)
-from services.auth import get_current_active_user, admin_required
+from schemas.reimbursement import (
+    ReimbursementAnalytics,
+    ReimbursementCreate,
+    ReimbursementOut,
+    ReimbursementUpdateStatus,
+)
+from services.auth import admin_required, get_current_active_user
 
 router = APIRouter()
-
 
 
 @router.post("/", response_model=ReimbursementOut)
@@ -33,7 +36,9 @@ def create_reimbursement(
         receipt_url = os.path.join(upload_dir, f"{current_user.id}_{receipt.filename}")
         with open(receipt_url, "wb") as f:
             f.write(receipt.file.read())
-    db_reim = Reimbursement(**reimbursement.dict(), employee_id=current_user.id, receipt_url=receipt_url)
+    db_reim = Reimbursement(
+        **reimbursement.dict(), employee_id=current_user.id, receipt_url=receipt_url
+    )
     db.add(db_reim)
     db.commit()
     db.refresh(db_reim)
@@ -67,7 +72,6 @@ def approve_reimbursement(
     db.commit()
     db.refresh(reim)
     return reim
-
 
 
 @router.get("/analytics", response_model=ReimbursementAnalytics)

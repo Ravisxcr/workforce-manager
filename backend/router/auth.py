@@ -3,13 +3,19 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from jose import JWTError, jwt
-from schemas.auth import UserLogin, UserSignUp
 from sqlalchemy.orm import Session
 
 from db.session import get_db
 from models.user import User
-from services.auth import (authenticate_user, create_access_token,
-                           hash_password, oauth2_scheme, validate_access_token, get_current_active_user)
+from schemas.auth import UserLogin, UserSignUp
+from services.auth import (
+    authenticate_user,
+    create_access_token,
+    get_current_active_user,
+    hash_password,
+    oauth2_scheme,
+    validate_access_token,
+)
 from utils.config import settings
 
 router = APIRouter()
@@ -104,7 +110,8 @@ def refresh_token(
 
 @router.get("/user-info")
 def get_user_info(
-    db: Session = Depends(get_db), current_user: Annotated[User, Depends(get_current_active_user)] = None
+    db: Session = Depends(get_db),
+    current_user: Annotated[User, Depends(get_current_active_user)] = None,
 ):
     if not current_user:
         raise HTTPException(status_code=401, detail="Invalid token")
