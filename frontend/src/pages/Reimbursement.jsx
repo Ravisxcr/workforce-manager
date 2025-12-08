@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { reimbursementAPI } from '../lib/api';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
+import { getStatusColor, getStatusIcon } from '../lib/StatusUtils';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
@@ -27,8 +29,8 @@ const Reimbursement = () => {
 
   // Summary values
   const totalClaimed = reimbursements.reduce((acc, r) => acc + (Number(r.amount) || 0), 0);
-  const totalApproved = reimbursements.filter(r => r.status === 'Approved').reduce((acc, r) => acc + (Number(r.amount) || 0), 0);
-  const totalPending = reimbursements.filter(r => r.status !== 'Approved').reduce((acc, r) => acc + (Number(r.amount) || 0), 0);
+  const totalApproved = reimbursements.filter(r => r.status === 'approved').reduce((acc, r) => acc + (Number(r.amount) || 0), 0);
+  const totalPending = reimbursements.filter(r => r.status !== 'approved').reduce((acc, r) => acc + (Number(r.amount) || 0), 0);
 
   useEffect(() => {
     const fetchReimbursements = async () => {
@@ -63,7 +65,8 @@ const Reimbursement = () => {
       await reimbursementAPI.createReimbursement({
         amount: form.amount,
         description: form.description,
-        date_requested: form.date,
+        date: form.date,
+        type: form.type,
         receipt: form.receipt,
       });
       setSuccess(true);
@@ -71,7 +74,7 @@ const Reimbursement = () => {
       setFormOpen(false);
       // Refresh reimbursement list
       if (user) {
-        const data = await reimbursementAPI.getReimbursements(user.id);
+        const data = await reimbursementAPI.getReimbursements();
         setReimbursements(Array.isArray(data) ? data : []);
       }
     } catch (err) {
@@ -211,6 +214,8 @@ const Reimbursement = () => {
         </div>
       )}
 
+      consloge.log(reimbursements);
+
       {/* Reimbursement History Table */}
       <Card>
         <CardHeader>
@@ -218,42 +223,39 @@ const Reimbursement = () => {
           <CardDescription>Complete history of your reimbursement requests</CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center min-h-[200px] text-gray-500">Loading...</div>
-          ) : reimbursements.length === 0 ? (
+          { (!reimbursements || reimbursements.length === 0) ? (
             <div className="flex flex-col items-center justify-center py-12 text-gray-500">
               <span className="text-lg font-medium">No reimbursement requests found.</span>
               <span className="text-sm">Your reimbursement records will appear here once available.</span>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm border">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="px-3 py-2 border">Date</th>
-                    <th className="px-3 py-2 border">Type</th>
-                    <th className="px-3 py-2 border">Amount</th>
-                    <th className="px-3 py-2 border">Description</th>
-                    <th className="px-3 py-2 border">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                   {reimbursements.map((r) => (
-                    <tr key={r.id}>
-                      <td className="px-3 py-2 border">{r.date}</td>
-                      <td className="px-3 py-2 border">{r.type}</td>
-                      <td className="px-3 py-2 border">₹{r.amount}</td>
-                      <td className="px-3 py-2 border">{r.description}</td>
-                      <td className="px-3 py-2 border">
-                        <Badge variant={r.status === 'Approved' ? 'success' : r.status === 'Rejected' ? 'destructive' : 'secondary'}>
-                          {r.status || 'Pending'}
+                    <TableRow key={r.id}>
+                      <TableCell className="font-medium">{new Date(r.requested_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</TableCell>
+                      <TableCell className="max-w-xs truncate">{r.type}</TableCell>
+                      <TableCell>{r.amount}</TableCell>
+                      <TableCell className="max-w-xs truncate">{r.description}</TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusColor(r.status)} className="flex items-center gap-1 w-fit">
+                          {getStatusIcon(r.status)}
+                          {r.status}
                         </Badge>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </TableBody>
+              </Table>
           )}
         </CardContent>
       </Card>

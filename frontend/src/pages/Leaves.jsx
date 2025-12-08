@@ -31,6 +31,7 @@ const Leaves = () => {
     try {
       setLoading(true);
       const balance = await leaveAPI.getAllLeaves();
+      console.log('Fetched leave data:', balance);
       setLeaveData({
         data: balance.data,
         extra: balance.extra,
@@ -149,7 +150,7 @@ const Leaves = () => {
       </div>
 
       {/* Leave Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">
@@ -188,6 +189,21 @@ const Leaves = () => {
           <CardContent>
               <div className="text-2xl font-bold text-orange-600">
                 {leaves_count.additionalProp3 ?? 0} days
+              </div>
+            <p className="text-xs text-gray-500 mt-1">Already utilized</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Requested Leaves
+            </CardTitle>
+            <Calendar className="h-4 w-4 text-gray-600" />
+          </CardHeader>
+          <CardContent>
+              <div className="text-2xl font-bold text-gray-600">
+                {leaves_count.requested_leave ?? 0} days
               </div>
             <p className="text-xs text-gray-500 mt-1">Already utilized</p>
           </CardContent>

@@ -61,9 +61,12 @@ def get_leaves(
         func.sum(case((Leave.type == "earned", days_expr), else_=0)).label(
             "earned_leave"
         ),
-    ).where(Leave.employee_id == current_user.id, Leave.status == "approved")
+        func.sum(case((Leave.status == "pending", days_expr), else_=0)).label(
+            "requested_leave"
+        ),
+    ).where(Leave.employee_id == current_user.id)
 
-    result = db.execute(stmt).one()
+    result = db.execute(stmt).first()
 
     data = []
     for leave_obj in leaves:
@@ -91,6 +94,7 @@ def get_leaves(
             "casual_leave": result.casual_leave or 0,
             "sick_leave": result.sick_leave or 0,
             "earned_leave": result.earned_leave or 0,
+            "requested_leave": result.requested_leave or 0,
         },
     }
 

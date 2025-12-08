@@ -1,4 +1,6 @@
 from datetime import date
+from fastapi import Form, File, UploadFile
+from dataclasses import dataclass
 from typing import List, Optional
 from uuid import UUID
 
@@ -6,33 +8,30 @@ from pydantic import BaseModel
 
 
 class ReimbursementCreate(BaseModel):
-    amount: str
-    description: Optional[str] = None
-    date: date
+    amount: float
+    description: Optional[str]
+    requested_date: date
     type: str
 
 
 class ReimbursementUpdateStatus(BaseModel):
     status: str
-    remarks: Optional[str] = None
-    date_approved: Optional[date] = None
-    approved_by_id: Optional[UUID] = None
-
+    remarks: Optional[str]
+    date_approved: Optional[date]
+    approved_by_id: Optional[UUID]
 
 class ReimbursementOut(BaseModel):
     id: UUID
     employee_id: UUID
     amount: str
+    type: str
     description: Optional[str]
-    date_requested: date
+    requested_date: date
     status: str
-    approved_by_id: Optional[UUID]
+    approved_by: Optional[UUID]
     date_approved: Optional[date]
     receipt_url: Optional[str]
     remarks: Optional[str]
-
-    class Config:
-        orm_mode = True
 
 
 class ReimbursementAnalytics(BaseModel):

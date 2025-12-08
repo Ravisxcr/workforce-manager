@@ -14,6 +14,10 @@ const apiRequest = async (endpoint, options = {}) => {
       ...options.headers,
     },
   };
+  if (options.body instanceof FormData) {
+    // Let the browser set the Content-Type including the boundary for multipart/form-data
+    delete config.headers['Content-Type'];
+  }
 
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
@@ -127,13 +131,14 @@ export const leaveAPI = {
 
 export const reimbursementAPI = {
   
-  createReimbursement: async ({ amount, description, date_requested, receipt }) => {
+  createReimbursement: async ({ amount, description, date, type, receipt }) => {
     // POST /reimbursement/ (multipart/form-data)
     const token = localStorage.getItem('access_token');
     const formData = new FormData();
     formData.append('amount', amount);
+    formData.append('type', type);
     formData.append('description', description || '');
-    formData.append('date_requested', date_requested);
+    formData.append('requested_date', date);
     if (receipt) {
       formData.append('receipt', receipt);
     }
@@ -141,8 +146,13 @@ export const reimbursementAPI = {
       method: 'POST',
       body: formData,
     });
-    return await response.json();
+    return await response;
   },
+
+  getReimbursements: async () => {
+    // GET /reimbursement/
+    return await apiRequest('/reimbursement/');
+  }
 
 };
 
