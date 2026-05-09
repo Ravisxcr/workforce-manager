@@ -52,6 +52,7 @@ export default function AttendancePage() {
   })
 
   const hasTodayCheckin = todayAtt.some((a) => a.check_in && !a.check_out)
+  const hasTodayCheckedOut = todayAtt.some((a) => a.check_out)
   const hasTodayRecord = todayAtt.length > 0
 
   const fetchData = useCallback(async () => {
@@ -217,12 +218,12 @@ export default function AttendancePage() {
             />
             <Button
               onClick={handleCheckOut}
-              disabled={actionLoading || !hasTodayCheckin}
+              disabled={actionLoading || !hasTodayCheckin || hasTodayCheckedOut}
               className="w-full"
               variant="outline"
             >
               <LogOut className="mr-2 h-4 w-4" />
-              {!hasTodayCheckin ? 'Check in first' : 'Check Out'}
+              {!hasTodayCheckin ? 'Check in first' : (hasTodayCheckedOut ? 'Already checked out' : 'Check Out')}
             </Button>
           </CardContent>
         </Card>
