@@ -17,12 +17,17 @@ import { Badge } from '@/components/ui/badge'
 import {
   getMyDocuments, getPendingDocuments, uploadDocument, deleteDocument,
   verifyDocument, getDocumentFile, getDocumentFileUrl, getDocumentTypes,
+  getAllDocuments,
 } from '@/api/document'
 import type { DocumentOut } from '@/types'
+import { useAuth } from '@/context/auth-context'
 
 export default function DocumentsPage() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'  
   const [myDocs, setMyDocs] = useState<DocumentOut[]>([])
   const [pendingDocs, setPendingDocs] = useState<DocumentOut[]>([])
+  const [allDocs, setAllDocs] = useState<DocumentOut[]>([])
   const [docTypes, setDocTypes] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -38,23 +43,41 @@ export default function DocumentsPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<DocumentOut | null>(null)
 
+  const [open, setOpen] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState('')
+
   const fetchAll = useCallback(async () => {
     setLoading(true)
-    try {
-      const [my, pending, types] = await Promise.all([
+    try {  
+      // Always fetch common data
+      const [my, types] = await Promise.all([
         getMyDocuments(),
-        getPendingDocuments(),
         getDocumentTypes(),
       ])
       setMyDocs(my)
-      setPendingDocs(pending)
       setDocTypes(Array.isArray(types) ? types : [])
-    } catch {
-      toast.error('Failed to load documents')
-    } finally {
-      setLoading(false)
+
+      if (isAdmin) {
+      const [pending, all] = await Promise.all([
+        getPendingDocuments(),
+        getAllDocuments(),
+      ])
+      setPendingDocs(pending)
+      setAllDocs(Array.isArray(all) ? all : [])
     }
-  }, [])
+      } catch (err) {
+        toast.error('Failed to load documents')
+      } finally {
+        setLoading(false)
+      }
+  }, [isAdmin])
+
+  useEffect(() => {
+    if (!open && previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+      setPreviewUrl('')
+    }
+  }, [open, previewUrl])
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
@@ -108,9 +131,6 @@ export default function DocumentsPage() {
     setVerifyComment('')
     setVerifyDialog(true)
   }
-
-  const [open, setOpen] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState('')
 
   const handlePreview = async (id: string) => {
     try {
@@ -203,10 +223,15 @@ export default function DocumentsPage() {
         <div className="flex items-center justify-between mb-4">
           <TabsList>
             <TabsTrigger value="my">My Documents</TabsTrigger>
-            <TabsTrigger value="pending">
-              Pending Verification
-              {pendingDocs.length > 0 && <Badge className="ml-2 h-5 px-1.5 text-xs">{pendingDocs.length}</Badge>}
-            </TabsTrigger>
+            {isAdmin && (
+              <>
+              <TabsTrigger value="pending">
+                Pending Verification
+                {pendingDocs.length > 0 && <Badge className="ml-2 h-5 px-1.5 text-xs">{pendingDocs.length}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="all">All Documents</TabsTrigger>
+              </>
+            )}
           </TabsList>
         </div>
 
@@ -214,9 +239,17 @@ export default function DocumentsPage() {
           <DataTable columns={docColumns} data={myDocs} isLoading={loading} rowKey={(d) => d.id} />
         </TabsContent>
 
-        <TabsContent value="pending">
-          <DataTable columns={pendingColumns} data={pendingDocs} isLoading={loading} rowKey={(d) => d.id} />
-        </TabsContent>
+        {isAdmin && (
+          <>
+          <TabsContent value="pending">
+            <DataTable columns={pendingColumns} data={pendingDocs} isLoading={loading} rowKey={(d) => d.id} />
+          </TabsContent>
+
+          <TabsContent value="all">
+            <DataTable columns={docColumns} data={allDocs} isLoading={loading} rowKey={(d) => d.id} />
+          </TabsContent>
+          </>
+        )}
       </Tabs>
 
       {/* Upload Dialog */}

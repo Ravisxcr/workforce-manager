@@ -1,4 +1,4 @@
-from datetime import datetime
+import datetime
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -17,7 +17,7 @@ class DocumentOut(BaseModel):
     file_path: str
     status: str
     verified_by_id: UUID | None
-    verified_at: datetime | None
+    verified_at: datetime.datetime | None
     comment: str | None
 
     class Config:
@@ -28,4 +28,4 @@ class DocumentVerify(BaseModel):
     status: str
     comment: str | None = None
     verified_by_id: UUID | None = None
-    verified_at: datetime | None = None
+    verified_at: datetime.datetime | None = None

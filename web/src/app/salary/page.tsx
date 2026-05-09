@@ -17,14 +17,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   listAllSalarySlips, createSalarySlip, deleteSalarySlip,
   getSalaryHistory, createSalaryHistory, deleteSalaryHistory, getSalaryAnalytics,
+  getMySalaryHistory,
+  getMySalarySlips,
 } from '@/api/salary'
 import { listEmployees } from '@/api/employee'
 import type { SalarySlipOut, SalarySlipCreate, SalaryHistoryOut, SalaryHistoryCreate, SalaryAnalytics, EmployeeOut } from '@/types'
+import { useAuth } from '@/context/auth-context'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 export default function SalaryPage() {
   const now = new Date()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+
+  const [mySlips, setMySlips] = useState<SalarySlipOut[]>([])
+  const [myHistory, setMyHistory] = useState<SalaryHistoryOut[]>([])
   const [employees, setEmployees] = useState<EmployeeOut[]>([])
   const [slips, setSlips] = useState<SalarySlipOut[]>([])
   const [history, setHistory] = useState<SalaryHistoryOut[]>([])
@@ -50,16 +58,25 @@ export default function SalaryPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [emps, slipList, hist, analyt] = await Promise.all([
-        listEmployees(),
-        listAllSalarySlips(),
-        getSalaryHistory(),
-        getSalaryAnalytics(),
+      const [mySlips, myHistory] = await Promise.all([
+        getMySalarySlips(),
+        getMySalaryHistory(),
       ])
-      setEmployees(emps)
-      setSlips(slipList)
-      setHistory(hist)
-      setAnalytics(analyt)
+      setMySlips(mySlips)
+      setMyHistory(myHistory)
+
+      if (isAdmin) {
+        const [emps, slipList, hist, analyt] = await Promise.all([
+          listEmployees(),
+          listAllSalarySlips(),
+          getSalaryHistory(),
+          getSalaryAnalytics(),
+        ])
+        setEmployees(emps)
+        setSlips(slipList)
+        setHistory(hist)
+        setAnalytics(analyt)
+      }
     } catch {
       toast.error('Failed to load salary data')
     } finally {
@@ -136,7 +153,7 @@ export default function SalaryPage() {
     <div>
       <PageHeader title="Salary" description="Manage salary slips and history" />
 
-      {analytics && (
+      {isAdmin && analytics && (
         <div className="grid gap-4 md:grid-cols-3 mb-6">
           <StatCard title="Total Employees" value={analytics.total_employees} icon={Users} />
           <StatCard title="Average Salary" value={`₹${analytics.avg_salary.toLocaleString()}`} icon={DollarSign} />
@@ -149,7 +166,15 @@ export default function SalaryPage() {
           <TabsList>
             <TabsTrigger value="slips">Salary Slips</TabsTrigger>
             <TabsTrigger value="history">Salary History</TabsTrigger>
+            {isAdmin && (
+            <>
+              <TabsTrigger value="tSlips">Team Slips</TabsTrigger>
+              <TabsTrigger value="tHistory">Team History</TabsTrigger>
+            </>
+            )}
           </TabsList>
+
+          {isAdmin && (  
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={() => { setHistoryForm({ employee_id: '', amount: 0, date: format(now, "yyyy-MM-dd'T'HH:mm"), remarks: '' }); setHistoryDialog(true) }}>
               <Plus className="mr-2 h-4 w-4" />
@@ -160,15 +185,28 @@ export default function SalaryPage() {
               Create Slip
             </Button>
           </div>
+          )}
         </div>
 
         <TabsContent value="slips">
-          <DataTable columns={slipColumns} data={slips} isLoading={loading} rowKey={(s) => s.id} />
+          <DataTable columns={slipColumns} data={mySlips} isLoading={loading} rowKey={(s) => s.id} />
         </TabsContent>
 
         <TabsContent value="history">
-          <DataTable columns={historyColumns} data={history} isLoading={loading} rowKey={(h) => h.id} />
+          <DataTable columns={historyColumns} data={myHistory} isLoading={loading} rowKey={(h) => h.id} />
         </TabsContent>
+
+        {isAdmin && (
+        <>
+          <TabsContent value="tSlips">
+            <DataTable columns={slipColumns} data={slips} isLoading={loading} rowKey={(s) => s.id} />
+          </TabsContent>
+
+          <TabsContent value="tHistory">
+            <DataTable columns={historyColumns} data={history} isLoading={loading} rowKey={(h) => h.id} />
+          </TabsContent>
+        </>
+        )}
       </Tabs>
 
       {/* Salary Slip Dialog */}

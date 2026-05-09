@@ -21,6 +21,7 @@ import {
 } from '@/api/attendance'
 import { listEmployees } from '@/api/employee'
 import type { AttendanceOut, AttendanceAnalytics, EmployeeOut } from '@/types'
+import { useAuth } from '@/context/auth-context'
 
 const MONTHS = [
   'January','February','March','April','May','June',
@@ -29,6 +30,9 @@ const MONTHS = [
 
 export default function AttendancePage() {
   const now = new Date()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [year, setYear] = useState(now.getFullYear())
 
@@ -53,22 +57,27 @@ export default function AttendancePage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [myAtt, today, analyt, emps] = await Promise.all([
+      const [myAtt, today] = await Promise.all([
         getMyAttendance({ month, year }),
         getTodayAttendance(),
-        getAttendanceAnalytics({ month, year }),
-        listEmployees(),
       ])
       setMyAttendance(myAtt)
       setTodayAtt(today)
-      setAnalytics(analyt)
-      setEmployees(emps)
+
+      if (isAdmin) {
+        const [analyt, emps] = await Promise.all([
+        getAttendanceAnalytics({ month, year }),
+        listEmployees(),
+        ])
+        setAnalytics(analyt)
+        setEmployees(emps)
+      }
     } catch {
       toast.error('Failed to load attendance data')
     } finally {
       setLoading(false)
     }
-  }, [month, year])
+  }, [month, year, isAdmin])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -159,10 +168,12 @@ export default function AttendancePage() {
   return (
     <div>
       <PageHeader title="Attendance" description="Track and manage employee attendance">
-        <Button onClick={() => setManualOpen(true)} size="sm" variant="outline">
-          <Plus className="mr-2 h-4 w-4" />
-          Manual Entry
-        </Button>
+        {isAdmin && (
+          <Button onClick={() => setManualOpen(true)} size="sm" variant="outline">
+            <Plus className="mr-2 h-4 w-4" />
+            Manual Entry
+          </Button>
+        )}
       </PageHeader>
 
       {/* Quick Check-in / Check-out */}
@@ -221,7 +232,7 @@ export default function AttendancePage() {
         <div className="flex items-center justify-between mb-4">
           <TabsList>
             <TabsTrigger value="my">My Attendance</TabsTrigger>
-            <TabsTrigger value="analytics">Team Analytics</TabsTrigger>
+            {isAdmin && <TabsTrigger value="analytics">Team Analytics</TabsTrigger>}
           </TabsList>
           <div className="flex items-center gap-2">
             <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
@@ -249,14 +260,18 @@ export default function AttendancePage() {
           <DataTable columns={myColumns} data={myAttendance} isLoading={loading} rowKey={(a) => a.id} />
         </TabsContent>
 
-        <TabsContent value="analytics">
-          <div className="grid gap-4 md:grid-cols-3 mb-4">
-            <StatCard title="Total Present" value={totalPresent} icon={Clock} description="across all employees" />
-            <StatCard title="Total Absent" value={totalAbsent} icon={BarChart3} description="across all employees" />
-            <StatCard title="Employees Tracked" value={analytics.length} icon={Clock} description="this month" />
-          </div>
-          <DataTable columns={analyticsColumns} data={analytics} isLoading={loading} rowKey={(a) => a.employee_id} />
-        </TabsContent>
+        {isAdmin && (
+          <>
+          <TabsContent value="analytics">
+            <div className="grid gap-4 md:grid-cols-3 mb-4">
+              <StatCard title="Total Present" value={totalPresent} icon={Clock} description="across all employees" />
+              <StatCard title="Total Absent" value={totalAbsent} icon={BarChart3} description="across all employees" />
+              <StatCard title="Employees Tracked" value={analytics.length} icon={Clock} description="this month" />
+            </div>
+            <DataTable columns={analyticsColumns} data={analytics} isLoading={loading} rowKey={(a) => a.employee_id} />
+          </TabsContent>
+          </>
+        )}
       </Tabs>
 
       {/* Manual Entry Dialog */}

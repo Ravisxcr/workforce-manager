@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 from uuid import UUID
 
@@ -98,6 +99,17 @@ def get_pending_documents(
         data=[DocumentOut.model_validate(doc) for doc in documents]
     )
 
+@router.get("/all", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+def get_all_documents(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(admin_required),
+):
+    documents = db.query(Document).all()
+    return MessageResponse(
+        message="All documents retrieved successfully",
+        data=[DocumentOut.model_validate(doc) for doc in documents]
+    )
+
 
 @router.patch("/{document_id}/verify", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def verify_document(
@@ -112,7 +124,7 @@ def verify_document(
     doc.status = verify.status
     doc.comment = verify.comment
     doc.verified_by_id = current_user.id
-    doc.verified_at = verify.verified_at or None
+    doc.verified_at = datetime.now()
     db.commit()
     db.refresh(doc)
     return MessageResponse(

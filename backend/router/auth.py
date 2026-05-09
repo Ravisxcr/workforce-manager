@@ -16,6 +16,7 @@ from schemas.auth import (
     UserLoginRequest,
     UserSignUp,
     UserSignUpResponse,
+    Role,
 )
 from schemas import MessageResponse
 from services.auth import (
@@ -70,7 +71,7 @@ def add_user(new_user: UserSignUp, db: Session = Depends(get_db)):
         email=new_user.email,
         full_name=new_user.full_name,
         hashed_password=hash_password(new_user.password),
-        is_admin=True,
+        role=Role(new_user.role).value,
     )
     db.add(user)
     db.commit()

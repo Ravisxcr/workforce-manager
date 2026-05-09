@@ -17,6 +17,7 @@ export const uploadDocument = (data: {
 
 export const getMyDocuments = () => get<DocumentOut[]>('/document/my')
 export const getPendingDocuments = () => get<DocumentOut[]>('/document/pending')
+export const getAllDocuments = () => get<DocumentOut[]>('/document/all')
 export const verifyDocument = (id: string, data: DocumentVerify) =>
   patch<DocumentOut>(`/document/${id}/verify`, data)
 export const deleteDocument = (id: string) => del(`/document/${id}`)
