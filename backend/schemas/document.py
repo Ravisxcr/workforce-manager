@@ -10,13 +10,13 @@ class DocumentUpload(BaseModel):
 
 
 class DocumentOut(BaseModel):
-    id: str
-    employee_id: str
+    id: UUID
+    employee_id: UUID
     document_type: str
     description: str | None
     file_path: str
     status: str
-    verified_by_id: str | None
+    verified_by_id: UUID | None
     verified_at: datetime | None
     comment: str | None
 

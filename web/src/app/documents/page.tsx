@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import {
   getMyDocuments, getPendingDocuments, uploadDocument, deleteDocument,
-  verifyDocument, getDocumentFileUrl, getDocumentTypes,
+  verifyDocument, getDocumentFile, getDocumentFileUrl, getDocumentTypes,
 } from '@/api/document'
 import type { DocumentOut } from '@/types'
 
@@ -109,6 +109,22 @@ export default function DocumentsPage() {
     setVerifyDialog(true)
   }
 
+  const [open, setOpen] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState('')
+
+  const handlePreview = async (id: string) => {
+    try {
+      const blob = await getDocumentFile(id)
+
+      const url = URL.createObjectURL(blob)
+
+      setPreviewUrl(url)
+      setOpen(true)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   const docColumns: Column<DocumentOut>[] = [
     {
       key: 'type', header: 'Document',
@@ -160,10 +176,8 @@ export default function DocumentsPage() {
       key: 'actions', header: 'Actions', className: 'w-32',
       cell: (d) => (
         <div className="flex gap-1">
-          <Button size="icon" variant="ghost" className="h-7 w-7" asChild>
-            <a href={getDocumentFileUrl(d.id)} target="_blank" rel="noopener noreferrer">
+          <Button size="icon" variant="ghost" className="h-7 w-7"  onClick={() => handlePreview(d.id)}>
               <Eye className="h-3.5 w-3.5" />
-            </a>
           </Button>
           <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600 hover:text-green-700" onClick={() => openVerify(d, 'verified')}>
             <Check className="h-3.5 w-3.5" />
@@ -277,6 +291,27 @@ export default function DocumentsPage() {
         onConfirm={handleDelete}
         destructive
       />
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-6xl h-[90vh] p-0 overflow-hidden">
+          
+          <div className="flex items-center justify-between border-b px-4 py-3">
+            <DialogTitle className="text-sm font-medium">
+              Document Preview
+            </DialogTitle>
+          </div>
+
+          <div className="h-full">
+            {previewUrl && (
+              <iframe
+                src={previewUrl}
+                className="w-full h-[calc(90vh-57px)]"
+              />
+            )}
+          </div>
+
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

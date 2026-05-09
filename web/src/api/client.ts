@@ -110,3 +110,23 @@ export async function postForm<T>(path: string, formData: FormData): Promise<T> 
   }
   return res.json() as Promise<T>
 }
+
+
+export async function getBlob(path: string): Promise<Blob> {
+  const token = getToken()
+
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'GET',
+    headers: token
+      ? {
+          Authorization: `Bearer ${token}`,
+        }
+      : {},
+  })
+
+  if (!res.ok) {
+    throw new Error(res.statusText)
+  }
+
+  return res.blob()
+}

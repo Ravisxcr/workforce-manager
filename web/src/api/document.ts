@@ -1,4 +1,4 @@
-import { get, patch, del, postForm } from './client'
+import { get, patch, del, postForm, getBlob } from './client'
 import type { DocumentOut, DocumentVerify } from '@/types'
 
 export const getDocumentTypes = () => get<string[]>('/document/types')
@@ -21,4 +21,5 @@ export const verifyDocument = (id: string, data: DocumentVerify) =>
   patch<DocumentOut>(`/document/${id}/verify`, data)
 export const deleteDocument = (id: string) => del(`/document/${id}`)
 export const getDocumentFileUrl = (id: string) =>
-  `${import.meta.env.VITE_API_URL ?? 'http://localhost:8000'}/document/${id}/file`
+    `${import.meta.env.VITE_API_URL ?? 'http://localhost:8000'}/document/${id}/file`
+export const getDocumentFile = (id: string) => getBlob(`/document/${id}/file`)

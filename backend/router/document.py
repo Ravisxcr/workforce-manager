@@ -39,7 +39,7 @@ def get_document_types():
 @router.post("/upload", status_code=status.HTTP_201_CREATED, response_model=MessageResponse)
 def upload_document(
     document_type: str = File(...),
-    description: str = File(None),
+    description: str | None = File(None),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
@@ -84,7 +84,7 @@ def get_my_documents(
     documents = db.query(Document).filter(Document.employee_id == current_user.id).all()
     return MessageResponse(
         message="Documents retrieved successfully",
-        data={"documents": [DocumentOut.model_validate(doc) for doc in documents]}
+        data=[DocumentOut.model_validate(doc) for doc in documents]
     )
 
 @router.get("/pending", status_code=status.HTTP_200_OK, response_model=MessageResponse)
@@ -95,7 +95,7 @@ def get_pending_documents(
     documents = db.query(Document).filter(Document.status == "pending").all()
     return MessageResponse(
         message="Pending documents retrieved successfully",
-        data={"documents": [DocumentOut.model_validate(doc) for doc in documents]}
+        data=[DocumentOut.model_validate(doc) for doc in documents]
     )
 
 
@@ -139,7 +139,7 @@ def delete_document(
     return None
 
 
-@router.get("/{document_id}/file", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.get("/{document_id}/file", status_code=status.HTTP_200_OK)
 def get_document_file(
     document_id: UUID,
     db: Session = Depends(get_db),
@@ -156,11 +156,8 @@ def get_document_file(
         raise HTTPException(status_code=404, detail="File not found on disk")
     ext = os.path.splitext(doc.file_path)[1].lower()
     media_type = "application/pdf" if ext == ".pdf" else "image/png"
-    return MessageResponse(
-        message="File retrieved successfully",
-        data={
-            "file": FileResponse(
-                doc.file_path, media_type=media_type, filename=os.path.basename(doc.file_path)
-            )
-        }
+    return FileResponse(
+        path=doc.file_path,
+        media_type=media_type,
+        filename=os.path.basename(doc.file_path),
     )
