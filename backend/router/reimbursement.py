@@ -1,12 +1,13 @@
 import os
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from db.session import get_db
 from models.claims import Reimbursement
 from models.user import User
+from schemas import MessageResponse
 from schemas.reimbursement import (
     ReimbursementAnalytics,
     ReimbursementCreate,
@@ -32,7 +33,7 @@ def _save_receipt(receipt: UploadFile, user_id) -> str:
     return path
 
 
-@router.post("/", response_model=ReimbursementOut)
+@router.post("/", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
 def create_reimbursement(
     reimbursement: ReimbursementCreate = Depends(),
     receipt: UploadFile = File(None),
@@ -46,22 +47,28 @@ def create_reimbursement(
     db.add(db_reim)
     db.commit()
     db.refresh(db_reim)
-    return db_reim
+    return MessageResponse(
+        message="Reimbursement created successfully",
+        data=ReimbursementOut.model_validate(db_reim)
+    )
 
 
-@router.get("/", response_model=list[ReimbursementOut])
+@router.get("/", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_my_reimbursements(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    return (
-        db.query(Reimbursement)
-        .filter(Reimbursement.employee_id == current_user.id)
-        .all()
+    return MessageResponse(
+        message="My reimbursements retrieved successfully",
+        data=[ReimbursementOut.model_validate(reim) for reim in (
+            db.query(Reimbursement)
+            .filter(Reimbursement.employee_id == current_user.id)
+            .all()
+        )]
     )
 
 
-@router.get("/all", response_model=list[ReimbursementOut])
+@router.get("/all", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def list_all_reimbursements(
     status: str | None = None,
     db: Session = Depends(get_db),
@@ -70,26 +77,32 @@ def list_all_reimbursements(
     q = db.query(Reimbursement)
     if status:
         q = q.filter(Reimbursement.status == status)
-    return q.order_by(Reimbursement.date.desc()).all()
+    return MessageResponse(
+        message="All reimbursements retrieved successfully",
+        data=[ReimbursementOut.model_validate(reim) for reim in q.order_by(Reimbursement.date.desc()).all()]
+    )
 
 
-@router.get("/analytics", response_model=ReimbursementAnalytics)
+@router.get("/analytics", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_reimbursement_analytics(
     db: Session = Depends(get_db),
     current_user: User = Depends(admin_required),
 ):
     claims = db.query(Reimbursement).all()
-    return ReimbursementAnalytics(
-        total_claims=len(claims),
-        total_approved=sum(1 for c in claims if c.status == "approved"),
-        total_pending=sum(1 for c in claims if c.status == "pending"),
-        total_rejected=sum(1 for c in claims if c.status == "rejected"),
-        total_amount=str(sum(float(c.amount) for c in claims if c.amount)),
-        claims=claims,
+    return MessageResponse(
+        message="Reimbursement analytics retrieved successfully",
+        data=ReimbursementAnalytics(
+            total_claims=len(claims),
+            total_approved=sum(1 for c in claims if c.status == "approved"),
+            total_pending=sum(1 for c in claims if c.status == "pending"),
+            total_rejected=sum(1 for c in claims if c.status == "rejected"),
+            total_amount=str(sum(float(c.amount) for c in claims if c.amount)),
+            claims=claims,
+        )
     )
 
 
-@router.get("/{reimbursement_id}", response_model=ReimbursementOut)
+@router.get("/{reimbursement_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_reimbursement(
     reimbursement_id: UUID,
     db: Session = Depends(get_db),
@@ -100,10 +113,13 @@ def get_reimbursement(
         raise HTTPException(status_code=404, detail="Reimbursement not found")
     if reim.employee_id != current_user.id and not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Not authorized")
-    return reim
+    return MessageResponse(
+        message="Reimbursement retrieved successfully",
+        data=ReimbursementOut.model_validate(reim)
+    )
 
 
-@router.put("/{reimbursement_id}", response_model=ReimbursementOut)
+@router.put("/{reimbursement_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def update_reimbursement(
     reimbursement_id: UUID,
     body: ReimbursementUpdate,
@@ -128,10 +144,13 @@ def update_reimbursement(
         setattr(reim, field, value)
     db.commit()
     db.refresh(reim)
-    return reim
+    return MessageResponse(
+        message="Reimbursement updated successfully",
+        data=ReimbursementOut.model_validate(reim)
+    )
 
 
-@router.delete("/{reimbursement_id}", status_code=204)
+@router.delete("/{reimbursement_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_reimbursement(
     reimbursement_id: UUID,
     db: Session = Depends(get_db),
@@ -156,7 +175,7 @@ def delete_reimbursement(
     return None
 
 
-@router.post("/approve/{reimbursement_id}", response_model=ReimbursementOut)
+@router.post("/approve/{reimbursement_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def approve_reimbursement(
     reimbursement_id: UUID,
     update: ReimbursementUpdateStatus,
@@ -174,4 +193,7 @@ def approve_reimbursement(
         reim.date_approved = update.date_approved
     db.commit()
     db.refresh(reim)
-    return reim
+    return MessageResponse(
+        message="Reimbursement approved successfully",
+        data=ReimbursementOut.model_validate(reim)
+    )

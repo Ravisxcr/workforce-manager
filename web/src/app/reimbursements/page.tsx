@@ -66,7 +66,7 @@ export default function ReimbursementsPage() {
     if (!receipt) { toast.error('Please attach a receipt'); return }
     setSaving(true)
     try {
-      await createReimbursement({ amount: form.amount, description: form.description, date: form.date, type: form.type }, receipt)
+      await createReimbursement({ amount: form.amount, description: form.description, date: form.date, remarks: form.type }, receipt)
       toast.success('Reimbursement submitted')
       setDialogOpen(false)
       setForm({ amount: '', description: '', date: '', type: '' })

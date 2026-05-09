@@ -4,7 +4,7 @@ import type {
 } from '@/types'
 
 export const createReimbursement = (
-  params: { amount: string; description?: string; date: string; type: string },
+  params: { amount: string; description?: string; date: string; remarks: string },
   receipt: File,
 ) => {
   const form = new FormData()

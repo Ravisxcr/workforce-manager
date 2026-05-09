@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -77,4 +78,4 @@ class SalaryAnalyticsItem(BaseModel):
 class SalaryAnalytics(BaseModel):
     total_employees: int
     avg_salary: float
-    employees: list[SalaryAnalyticsItem]
+    employees: Optional[list[SalaryAnalyticsItem]] = []

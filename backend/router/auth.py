@@ -15,7 +15,9 @@ from schemas.auth import (
     TokenResponse,
     UserLoginRequest,
     UserSignUp,
+    UserSignUpResponse,
 )
+from schemas import MessageResponse
 from services.auth import (
     authenticate_user,
     create_access_token,
@@ -30,16 +32,17 @@ from utils.config import settings
 router = APIRouter()
 
 
-@router.post("/login", response_model=TokenResponse, status_code=status.HTTP_200_OK)
+@router.post("/login", response_model=MessageResponse, status_code=status.HTTP_200_OK)
 def login(user_login: UserLoginRequest, db: Session = Depends(get_db)):
     user = authenticate_user(db, user_login.email, user_login.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
         )
-    token = create_access_token({"sub": user.email, "is_admin": user.is_admin})
-    return TokenResponse(
-        access_token=token, token_type="bearer", is_admin=user.is_admin
+    token = create_access_token({"sub": user.email, "role": user.role})
+    return MessageResponse(
+        message="Login successful",
+        data=TokenResponse(access_token=token, token_type="bearer", role=user.role)
     )
 
 
@@ -47,10 +50,12 @@ def login(user_login: UserLoginRequest, db: Session = Depends(get_db)):
 def logout(current_user: User = Depends(get_current_active_user)):
     # JWT is stateless; client should discard the token.
     # Server-side blacklisting would require a cache (Redis) — not in scope here.
-    return {"detail": "Logged out successfully"}
+    return MessageResponse(
+        message="Logged out successfully"
+    )
 
 
-@router.post("/add-user")
+@router.post("/add-user", status_code=status.HTTP_201_CREATED, response_model=MessageResponse)
 def add_user(new_user: UserSignUp, db: Session = Depends(get_db)):
     if settings.ENABLE_ADD_USER is False:
         raise HTTPException(
@@ -70,10 +75,18 @@ def add_user(new_user: UserSignUp, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
-    return {"email": user.email, "id": str(user.id)}
+    return MessageResponse(
+        message="User added successfully",
+        data=UserSignUpResponse(
+            email=user.email,
+            full_name=user.full_name,
+            role=user.role,
+            id=user.id
+        )
+    )
 
 
-@router.delete("/delete-user/{email}")
+@router.delete("/delete-user/{email}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def delete_user(
     email: str,
     db: Session = Depends(get_db),
@@ -98,10 +111,10 @@ def delete_user(
         raise HTTPException(status_code=404, detail="User not found")
     db.delete(user_to_delete)
     db.commit()
-    return {"detail": f"User {email} deleted"}
+    return MessageResponse(message=f"User {email} deleted")
 
 
-@router.post("/refresh-token")
+@router.post("/refresh-token", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def refresh_token(
     token: Annotated[str, Depends(oauth2_scheme)], db: Session = Depends(get_db)
 ):
@@ -113,27 +126,33 @@ def refresh_token(
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         new_token = create_access_token({"sub": user.email, "is_admin": user.is_admin})
-        return {
-            "access_token": new_token,
-            "token_type": "bearer",
-            "is_admin": user.is_admin,
-        }
+        return MessageResponse(
+            message="Token refreshed successfully",
+            data=TokenResponse(
+                access_token=new_token,
+                token_type="bearer",
+                is_admin=user.is_admin,
+            )
+        )
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token") from None
 
 
-@router.get("/user-info")
+@router.get("/user-info", response_model=MessageResponse)
 def get_user_info(current_user: User = Depends(get_current_active_user)):
-    return {
-        "id": str(current_user.id),
-        "email": current_user.email,
-        "full_name": current_user.full_name,
-        "is_admin": current_user.is_admin,
-        "is_active": current_user.is_active,
-    }
+    return MessageResponse(
+        message="User info retrieved successfully",
+        data={
+            "id": str(current_user.id),
+            "email": current_user.email,
+            "full_name": current_user.full_name,
+            "role": current_user.role.value,
+            "is_active": current_user.is_active,
+        }
+    )
 
 
-@router.post("/change-password")
+@router.post("/change-password", response_model=MessageResponse)
 def change_password(
     body: ChangePassword,
     db: Session = Depends(get_db),
@@ -143,27 +162,29 @@ def change_password(
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     current_user.hashed_password = hash_password(body.new_password)
     db.commit()
-    return {"detail": "Password changed successfully"}
+    return MessageResponse(message="Password changed successfully")
 
 
-@router.post("/forgot-password")
+@router.post("/forgot-password", response_model=MessageResponse)
 def forgot_password(body: ForgotPassword, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == body.email).first()
     # Always return 200 to avoid leaking whether an email exists
     if not user:
-        return {"detail": "If that email is registered, a reset token has been sent"}
+        return MessageResponse(message="If that email is registered, a reset token has been sent")
     token = secrets.token_urlsafe(32)
     user.password_reset_token = token
     user.password_reset_expires = datetime.now(UTC) + timedelta(hours=1)
     db.commit()
     # In production: send token via email. Here we return it directly for dev.
-    return {
-        "detail": "Password reset token generated",
-        "reset_token": token,
-    }
+    return MessageResponse(
+        message="Password reset token generated",
+        data={
+            "reset_token": token,
+        }
+    )
 
 
-@router.post("/reset-password")
+@router.post("/reset-password", response_model=MessageResponse)
 def reset_password(body: ResetPassword, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.password_reset_token == body.token).first()
     if not user:
@@ -176,4 +197,4 @@ def reset_password(body: ResetPassword, db: Session = Depends(get_db)):
     user.password_reset_token = None
     user.password_reset_expires = None
     db.commit()
-    return {"detail": "Password reset successfully"}
+    return MessageResponse(message="Password reset successfully")

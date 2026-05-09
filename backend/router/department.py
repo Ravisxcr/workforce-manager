@@ -1,11 +1,12 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from db.session import get_db
 from models.department import Department, Designation
 from models.user import User
+from schemas import MessageResponse
 from schemas.department import (
     DepartmentCreate,
     DepartmentOut,
@@ -22,7 +23,7 @@ router = APIRouter()
 # ── Department CRUD ───────────────────────────────────────────────────────────
 
 
-@router.post("/", response_model=DepartmentOut)
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=MessageResponse)
 def create_department(
     body: DepartmentCreate,
     db: Session = Depends(get_db),
@@ -34,18 +35,24 @@ def create_department(
     db.add(dept)
     db.commit()
     db.refresh(dept)
-    return dept
+    return MessageResponse(
+        message="Department created successfully",
+        data=dept
+    )
 
 
-@router.get("/", response_model=list[DepartmentOut])
+@router.get("/", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def list_departments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    return db.query(Department).all()
+    return MessageResponse(
+        message="Departments retrieved successfully",
+        data=db.query(Department).all()
+    )
 
 
-@router.put("/{department_id}", response_model=DepartmentOut)
+@router.put("/{department_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def update_department(
     department_id: UUID,
     body: DepartmentUpdate,
@@ -59,10 +66,13 @@ def update_department(
         setattr(dept, field, value)
     db.commit()
     db.refresh(dept)
-    return dept
+    return MessageResponse(
+        message="Department updated successfully",
+        data=dept
+    )
 
 
-@router.delete("/{department_id}", status_code=204)
+@router.delete("/{department_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_department(
     department_id: UUID,
     db: Session = Depends(get_db),
@@ -79,7 +89,7 @@ def delete_department(
 # ── Designation CRUD ──────────────────────────────────────────────────────────
 
 
-@router.post("/designation", response_model=DesignationOut)
+@router.post("/designation", status_code=status.HTTP_201_CREATED, response_model=MessageResponse)
 def create_designation(
     body: DesignationCreate,
     db: Session = Depends(get_db),
@@ -89,10 +99,13 @@ def create_designation(
     db.add(desig)
     db.commit()
     db.refresh(desig)
-    return desig
+    return MessageResponse(
+        message="Designation created successfully",
+        data=desig
+    )
 
 
-@router.get("/designation", response_model=list[DesignationOut])
+@router.get("/designation", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def list_designations(
     department_id: UUID = None,
     db: Session = Depends(get_db),
@@ -101,10 +114,14 @@ def list_designations(
     q = db.query(Designation)
     if department_id:
         q = q.filter(Designation.department_id == department_id)
-    return q.all()
+    
+    return MessageResponse(
+        message="Designations retrieved successfully",
+        data=q.all()
+    )
 
 
-@router.put("/designation/{designation_id}", response_model=DesignationOut)
+@router.put("/designation/{designation_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def update_designation(
     designation_id: UUID,
     body: DesignationUpdate,
@@ -118,10 +135,13 @@ def update_designation(
         setattr(desig, field, value)
     db.commit()
     db.refresh(desig)
-    return desig
+    return MessageResponse(
+        message="Designation updated successfully",
+        data=desig
+    )
 
 
-@router.delete("/designation/{designation_id}", status_code=204)
+@router.delete("/designation/{designation_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_designation(
     designation_id: UUID,
     db: Session = Depends(get_db),

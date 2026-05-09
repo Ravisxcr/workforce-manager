@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from db.session import get_db
 from models.user import User
+from schemas.auth import Role
 from utils.config import settings
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -33,9 +34,26 @@ def get_current_active_user(
 
 
 def admin_required(current_user: User = Depends(get_current_active_user)):
-    if not current_user.is_admin:
+    if not current_user.role == Role.ADMIN.value:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
+        )
+    return current_user
+
+
+def hr_required(current_user: User = Depends(get_current_active_user)):
+    if current_user.role not in [Role.HR.value, Role.ADMIN.value]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="HR or Admin access required"
+        )
+    return current_user
+
+
+def manager_required(current_user: User = Depends(get_current_active_user)):
+    if current_user.role not in [Role.MANAGER.value, Role.ADMIN.value]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Manager or Admin access required",
         )
     return current_user
 

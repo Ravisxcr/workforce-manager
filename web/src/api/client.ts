@@ -12,6 +12,12 @@ export function clearToken(): void {
   localStorage.removeItem('access_token')
 }
 
+export interface ApiResponse<T = unknown> {
+  success: boolean
+  message: string
+  data: T
+}
+
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown
   params?: Record<string, string | number | boolean | undefined | null>
@@ -40,13 +46,31 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   })
 
+
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }))
+    const err = await res.json().catch(() => ({
+      success: false,
+      message: res.statusText,
+      data: null,
+    }))
     throw err
   }
 
   if (res.status === 204) return undefined as T
-  return res.json() as Promise<T>
+  let json: ApiResponse<T>
+
+  try {
+    json = await res.json()
+  } catch {
+    json = {
+      success: false,
+      message: res.statusText,
+      data: null as T,
+    }
+  }
+
+  if (!json.success) throw json
+  return json.data
 }
 
 export async function get<T>(path: string, params?: RequestOptions['params']): Promise<T> {
@@ -77,7 +101,11 @@ export async function postForm<T>(path: string, formData: FormData): Promise<T> 
     body: formData,
   })
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }))
+    const err = await res.json().catch(() => ({
+      success: false,
+      message: res.statusText,
+      data: null,
+    }))
     throw err
   }
   return res.json() as Promise<T>

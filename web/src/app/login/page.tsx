@@ -11,8 +11,8 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react'
 export default function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState(import.meta.env.VITE_DEFAULT_EMAIL || "")
+  const [password, setPassword] = useState(import.meta.env.VITE_DEFAULT_PASSWORD || "")
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
 

@@ -1,8 +1,9 @@
 import logging
 import traceback
 
+from schemas import MessageResponse
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -18,7 +19,7 @@ from router import (
     salary,
 )
 
-app = FastAPI(title="Workforce Manager API", version="2.0.0", prefix="/api/v1")
+app = FastAPI(title="Workforce Manager API", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -29,10 +30,17 @@ app.add_middleware(
 )
 
 
-@app.exception_handler(Exception)
-async def unhandled_exception_handler(request: Request, exc: Exception):
-    logging.error("Unhandled exception: %s\n%s", exc, traceback.format_exc())
-    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    response = MessageResponse(
+        success=False,
+        message=str(exc.detail),
+        data=None
+    )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=response.model_dump()
+    )
 
 
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])

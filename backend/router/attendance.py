@@ -1,7 +1,8 @@
 from datetime import UTC, date, datetime
 from uuid import UUID
+import calendar as cal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from db.session import get_db
@@ -15,6 +16,8 @@ from schemas.attendance import (
     AttendanceOut,
     AttendanceUpdate,
 )
+from schemas import MessageResponse
+from schemas.auth import Role
 from services.auth import admin_required, get_current_active_user
 
 router = APIRouter()
@@ -29,7 +32,7 @@ def _calc_work_hours(
     return None
 
 
-@router.post("/check-in", response_model=AttendanceOut)
+@router.post("/check-in", status_code=status.HTTP_201_CREATED, response_model=MessageResponse)
 def check_in(
     body: AttendanceCheckIn,
     db: Session = Depends(get_db),
@@ -45,7 +48,7 @@ def check_in(
         .first()
     )
     if existing:
-        raise HTTPException(status_code=400, detail="Already checked in today")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Already checked in today")
     now = datetime.now(UTC).replace(tzinfo=None)
     record = Attendance(
         employee_id=current_user.id,
@@ -58,10 +61,13 @@ def check_in(
     db.add(record)
     db.commit()
     db.refresh(record)
-    return record
+    return MessageResponse(
+        message="Checked in successfully",
+        data=AttendanceOut.model_validate(record)
+    )
 
 
-@router.post("/check-out", response_model=AttendanceOut)
+@router.post("/check-out", status_code=status.HTTP_201_CREATED, response_model=MessageResponse)
 def check_out(
     body: AttendanceCheckOut,
     db: Session = Depends(get_db),
@@ -77,9 +83,9 @@ def check_out(
         .first()
     )
     if not record:
-        raise HTTPException(status_code=404, detail="No check-in found for today")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No check-in found for today")
     if record.check_out:
-        raise HTTPException(status_code=400, detail="Already checked out today")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Already checked out today")
     now = datetime.now(UTC).replace(tzinfo=None)
     record.check_out = now
     record.work_hours = _calc_work_hours(record.check_in, now)
@@ -87,10 +93,13 @@ def check_out(
         record.notes = body.notes
     db.commit()
     db.refresh(record)
-    return record
+    return MessageResponse(
+        message="Checked out successfully",
+        data=AttendanceOut.model_validate(record)
+    )
 
 
-@router.get("/me", response_model=list[AttendanceOut])
+@router.get("/me", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_my_attendance(
     month: int | None = Query(None, ge=1, le=12),
     year: int | None = Query(None),
@@ -104,22 +113,31 @@ def get_my_attendance(
         start = date(year, month, 1)
         end = date(year, month, cal.monthrange(year, month)[1])
         q = q.filter(Attendance.date >= start, Attendance.date <= end)
-    return q.order_by(Attendance.date.desc()).all()
+    response = q.order_by(Attendance.date.desc()).all()
+    return MessageResponse(
+        message="Attendance records retrieved successfully",
+        data=[AttendanceOut.model_validate(record) for record in response]
+    )
 
 
-@router.get("/today", response_model=list[AttendanceOut])
+
+
+@router.get("/today", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_today_attendance(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
     today = date.today()
     q = db.query(Attendance).filter(Attendance.date == today)
-    if not current_user.is_admin:
+    if not current_user.role == Role.ADMIN.value:
         q = q.filter(Attendance.employee_id == current_user.id)
-    return q.all()
+    return MessageResponse(
+        message="Today's attendance records retrieved successfully",
+        data=[AttendanceOut.model_validate(record) for record in q.all()]
+    )
 
 
-@router.get("/monthly", response_model=list[AttendanceOut])
+@router.get("/monthly", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_monthly_attendance(
     month: int = Query(..., ge=1, le=12),
     year: int = Query(...),
@@ -132,22 +150,23 @@ def get_monthly_attendance(
     start = date(year, month, 1)
     end = date(year, month, cal.monthrange(year, month)[1])
     q = db.query(Attendance).filter(Attendance.date >= start, Attendance.date <= end)
-    if not current_user.is_admin:
+    if not current_user.role == Role.ADMIN.value:
         q = q.filter(Attendance.employee_id == current_user.id)
     elif employee_id:
         q = q.filter(Attendance.employee_id == employee_id)
-    return q.order_by(Attendance.date.asc()).all()
+    return MessageResponse(
+        message="Monthly attendance records retrieved successfully",
+        data=[AttendanceOut.model_validate(record) for record in q.order_by(Attendance.date.asc()).all()]
+    )
 
 
-@router.get("/analytics", response_model=list[AttendanceAnalytics])
+@router.get("/analytics", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_attendance_analytics(
     month: int = Query(..., ge=1, le=12),
     year: int = Query(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(admin_required),
 ):
-    import calendar as cal
-
     start = date(year, month, 1)
     end = date(year, month, cal.monthrange(year, month)[1])
 
@@ -180,10 +199,12 @@ def get_attendance_analytics(
                 else None,
             )
         )
-    return result
+    return MessageResponse(
+        message="Attendance analytics retrieved successfully",
+        data=result
+    )
 
-
-@router.post("/manual-entry", response_model=AttendanceOut)
+@router.post("/manual-entry", status_code=status.HTTP_201_CREATED, response_model=MessageResponse)
 def manual_attendance_entry(
     body: AttendanceManualEntry,
     db: Session = Depends(get_db),
@@ -215,10 +236,13 @@ def manual_attendance_entry(
     db.add(record)
     db.commit()
     db.refresh(record)
-    return record
+    return MessageResponse(
+        message="Attendance record created successfully",
+        data=AttendanceOut.model_validate(record)
+    )
 
 
-@router.put("/{attendance_id}", response_model=AttendanceOut)
+@router.put("/{attendance_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def update_attendance(
     attendance_id: UUID,
     body: AttendanceUpdate,
@@ -227,16 +251,19 @@ def update_attendance(
 ):
     record = db.query(Attendance).filter(Attendance.id == attendance_id).first()
     if not record:
-        raise HTTPException(status_code=404, detail="Attendance record not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attendance record not found")
     for field, value in body.dict(exclude_unset=True).items():
         setattr(record, field, value)
     record.work_hours = _calc_work_hours(record.check_in, record.check_out)
     db.commit()
     db.refresh(record)
-    return record
+    return MessageResponse(
+        message="Attendance record updated successfully",
+        data=AttendanceOut.model_validate(record)
+    )
 
 
-@router.delete("/{attendance_id}", status_code=204)
+@router.delete("/{attendance_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_attendance(
     attendance_id: UUID,
     db: Session = Depends(get_db),
@@ -244,13 +271,13 @@ def delete_attendance(
 ):
     record = db.query(Attendance).filter(Attendance.id == attendance_id).first()
     if not record:
-        raise HTTPException(status_code=404, detail="Attendance record not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attendance record not found")
     db.delete(record)
     db.commit()
     return None
 
 
-@router.get("/{employee_id}", response_model=list[AttendanceOut])
+@router.get("/{employee_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_employee_attendance(
     employee_id: UUID,
     month: int | None = Query(None, ge=1, le=12),
@@ -265,4 +292,7 @@ def get_employee_attendance(
         start = date(year, month, 1)
         end = date(year, month, cal.monthrange(year, month)[1])
         q = q.filter(Attendance.date >= start, Attendance.date <= end)
-    return q.order_by(Attendance.date.desc()).all()
+    return MessageResponse(
+        message="Attendance records retrieved successfully",
+        data=[AttendanceOut.model_validate(record) for record in q.order_by(Attendance.date.desc()).all()]
+    )

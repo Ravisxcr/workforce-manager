@@ -1,10 +1,28 @@
+import uuid
 from pydantic import BaseModel
+from enum import Enum
+
+
+
+class Role(str, Enum):
+    EMPLOYEE = "employee"
+    MANAGER = "manager"
+    HR = "hr"
+    ADMIN = "admin"
 
 
 class UserSignUp(BaseModel):
     full_name: str = "local user"
     email: str = "user@example.com"
     password: str = "strongpassword"
+    role: Role = Role.EMPLOYEE
+
+
+class UserSignUpResponse(BaseModel):
+    id: uuid.UUID
+    email: str
+    full_name: str
+    role: Role
 
 
 class UserLoginRequest(BaseModel):
@@ -15,6 +33,9 @@ class UserLoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    role: Role
+
+
 
 
 class ChangePassword(BaseModel):

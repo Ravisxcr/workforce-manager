@@ -1,13 +1,14 @@
 import os
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from db.session import get_db
 from models.user import Document, User
 from schemas.document import DocumentOut, DocumentVerify
+from schemas import MessageResponse
 from services.auth import admin_required, get_current_active_user
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads")
@@ -27,12 +28,15 @@ DOCUMENT_TYPES = [
 ]
 
 
-@router.get("/types")
+@router.get("/types", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_document_types():
-    return {"types": DOCUMENT_TYPES}
+    return MessageResponse(
+        message="Document types retrieved successfully",
+        data={"types": DOCUMENT_TYPES}
+    )
 
 
-@router.post("/upload", response_model=DocumentOut)
+@router.post("/upload", status_code=status.HTTP_201_CREATED, response_model=MessageResponse)
 def upload_document(
     document_type: str = File(...),
     description: str = File(None),
@@ -66,26 +70,36 @@ def upload_document(
                 detail="Document of this type already uploaded. Delete existing one first.",
             ) from e
         raise
-    return doc
+    return MessageResponse(
+        message="Document uploaded successfully",
+        data=DocumentOut.model_validate(doc)
+    )
 
 
-@router.get("/my", response_model=list[DocumentOut])
+@router.get("/my", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_my_documents(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    return db.query(Document).filter(Document.employee_id == current_user.id).all()
+    documents = db.query(Document).filter(Document.employee_id == current_user.id).all()
+    return MessageResponse(
+        message="Documents retrieved successfully",
+        data={"documents": [DocumentOut.model_validate(doc) for doc in documents]}
+    )
 
-
-@router.get("/pending", response_model=list[DocumentOut])
+@router.get("/pending", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_pending_documents(
     db: Session = Depends(get_db),
     current_user: User = Depends(admin_required),
 ):
-    return db.query(Document).filter(Document.status == "pending").all()
+    documents = db.query(Document).filter(Document.status == "pending").all()
+    return MessageResponse(
+        message="Pending documents retrieved successfully",
+        data={"documents": [DocumentOut.model_validate(doc) for doc in documents]}
+    )
 
 
-@router.patch("/{document_id}/verify", response_model=DocumentOut)
+@router.patch("/{document_id}/verify", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def verify_document(
     document_id: UUID,
     verify: DocumentVerify,
@@ -101,10 +115,13 @@ def verify_document(
     doc.verified_at = verify.verified_at or None
     db.commit()
     db.refresh(doc)
-    return doc
+    return MessageResponse(
+        message="Document verified successfully",
+        data=DocumentOut.model_validate(doc)
+    )
 
 
-@router.delete("/{document_id}", status_code=204)
+@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_document(
     document_id: UUID,
     db: Session = Depends(get_db),
@@ -122,7 +139,7 @@ def delete_document(
     return None
 
 
-@router.get("/{document_id}/file")
+@router.get("/{document_id}/file", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_document_file(
     document_id: UUID,
     db: Session = Depends(get_db),
@@ -139,6 +156,11 @@ def get_document_file(
         raise HTTPException(status_code=404, detail="File not found on disk")
     ext = os.path.splitext(doc.file_path)[1].lower()
     media_type = "application/pdf" if ext == ".pdf" else "image/png"
-    return FileResponse(
-        doc.file_path, media_type=media_type, filename=os.path.basename(doc.file_path)
+    return MessageResponse(
+        message="File retrieved successfully",
+        data={
+            "file": FileResponse(
+                doc.file_path, media_type=media_type, filename=os.path.basename(doc.file_path)
+            )
+        }
     )

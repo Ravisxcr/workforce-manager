@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from db.session import get_db
@@ -16,12 +16,13 @@ from schemas.salary import (
     SalarySlipOut,
     SalarySlipUpdate,
 )
+from schemas import MessageResponse
 from services.auth import admin_required, get_current_active_user
 
 router = APIRouter()
 
 
-@router.post("/salary-slip", response_model=SalarySlipOut)
+@router.post("/salary-slip", status_code=status.HTTP_201_CREATED, response_model=MessageResponse)
 def create_salary_slip(
     slip: SalarySlipCreate,
     db: Session = Depends(get_db),
@@ -31,29 +32,40 @@ def create_salary_slip(
     db.add(salary_slip)
     db.commit()
     db.refresh(salary_slip)
-    return salary_slip
+    return MessageResponse(
+        message="Salary slip created successfully",
+        data=SalarySlipOut.model_validate(salary_slip)
+    )
 
 
-@router.get("/salary-slip/me", response_model=list[SalarySlipOut])
+@router.get("/salary-slip/me", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_my_salary_slips(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    return db.query(SalarySlip).filter(SalarySlip.employee_id == current_user.id).all()
+    response = db.query(SalarySlip).filter(SalarySlip.employee_id == current_user.id).all()
+    return MessageResponse(
+        message="Salary slips retrieved successfully",
+        data=[SalarySlipOut.model_validate(slip) for slip in response]
+    )
 
 
-@router.get("/salary-slip/{employee_id}", response_model=list[SalarySlipOut])
+@router.get("/salary-slip/{employee_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_salary_slips(
     employee_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
     if str(current_user.id) != str(employee_id) and not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Not authorized")
-    return db.query(SalarySlip).filter(SalarySlip.employee_id == employee_id).all()
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    response = db.query(SalarySlip).filter(SalarySlip.employee_id == employee_id).all()
+    return MessageResponse(
+        message="Salary slips retrieved successfully",
+        data=[SalarySlipOut.model_validate(slip) for slip in response]
+    )
 
 
-@router.post("/salary-history", response_model=SalaryHistoryOut)
+@router.post("/salary-history", status_code=status.HTTP_201_CREATED, response_model=MessageResponse)
 def create_salary_history(
     history: SalaryHistoryCreate,
     db: Session = Depends(get_db),
@@ -63,43 +75,57 @@ def create_salary_history(
     db.add(salary_history)
     db.commit()
     db.refresh(salary_history)
-    return salary_history
+    return MessageResponse(
+        message="Salary history created successfully",
+        data=SalaryHistoryOut.model_validate(salary_history)
+    )
 
 
-@router.get("/salary-history/me", response_model=list[SalaryHistoryOut])
+@router.get("/salary-history/me", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_my_salary_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    return (
+    response = (
         db.query(SalaryHistory)
         .filter(SalaryHistory.employee_id == current_user.id)
         .order_by(SalaryHistory.date.desc())
         .all()
     )
+    return MessageResponse(
+        message="Salary history retrieved successfully",
+        data=[SalaryHistoryOut.model_validate(history) for history in response]
+    )
 
 
-@router.get("/salary-history", response_model=list[SalaryHistoryOut])
+@router.get("/salary-history", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_salary_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    return (
+    response = (
         db.query(SalaryHistory)
         .filter(SalaryHistory.employee_id == current_user.id)
         .order_by(SalaryHistory.date.desc())
         .all()
     )
+    return MessageResponse(
+        message="Salary history retrieved successfully",
+        data=[SalaryHistoryOut.model_validate(history) for history in response]
+    )
 
 
-@router.get("/analytics", response_model=SalaryAnalytics)
+@router.get("/analytics", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_salary_analytics(
     db: Session = Depends(get_db),
     current_user: User = Depends(admin_required),
 ):
     slips = db.query(SalarySlip).all()
     if not slips:
-        return SalaryAnalytics(total_employees=0, avg_salary=0.0, employees=[])
+        return MessageResponse(
+            message="No salary slips found",
+            data=SalaryAnalytics(total_employees=0, avg_salary=0.0, employees=[])
+        )
 
     by_employee: dict = {}
     for slip in slips:
@@ -121,14 +147,17 @@ def get_salary_analytics(
             )
         )
 
-    return SalaryAnalytics(
-        total_employees=len(by_employee),
-        avg_salary=sum(all_net) / len(all_net),
-        employees=items,
+    return MessageResponse(
+        message="Salary analytics retrieved successfully",
+        data=SalaryAnalytics(
+            total_employees=len(by_employee),
+            avg_salary=sum(all_net) / len(all_net),
+            employees=items,
+        )
     )
 
 
-@router.get("/salary-slip", response_model=list[SalarySlipOut])
+@router.get("/salary-slip", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def list_all_salary_slips(
     employee_id: UUID | None = Query(None),
     month: str | None = Query(None),
@@ -143,10 +172,14 @@ def list_all_salary_slips(
         q = q.filter(SalarySlip.month == month)
     if year:
         q = q.filter(SalarySlip.year == year)
-    return q.order_by(SalarySlip.year.desc(), SalarySlip.date_generated.desc()).all()
+    response = q.order_by(SalarySlip.year.desc(), SalarySlip.date_generated.desc()).all()
+    return MessageResponse(
+        message="Salary slips retrieved successfully",
+        data=[SalarySlipOut.model_validate(slip) for slip in response]
+    )
 
 
-@router.put("/salary-slip/{slip_id}", response_model=SalarySlipOut)
+@router.put("/salary-slip/{slip_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def update_salary_slip(
     slip_id: UUID,
     body: SalarySlipUpdate,
@@ -160,10 +193,13 @@ def update_salary_slip(
         setattr(slip, field, value)
     db.commit()
     db.refresh(slip)
-    return slip
+    return MessageResponse(
+        message="Salary slip updated successfully",
+        data=SalarySlipOut.model_validate(slip)
+    )
 
 
-@router.delete("/salary-slip/{slip_id}", status_code=204)
+@router.delete("/salary-slip/{slip_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_salary_slip(
     slip_id: UUID,
     db: Session = Depends(get_db),
@@ -177,21 +213,25 @@ def delete_salary_slip(
     return None
 
 
-@router.get("/salary-history/{employee_id}", response_model=list[SalaryHistoryOut])
+@router.get("/salary-history/{employee_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_employee_salary_history(
     employee_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(admin_required),
 ):
-    return (
+    response = (
         db.query(SalaryHistory)
         .filter(SalaryHistory.employee_id == employee_id)
         .order_by(SalaryHistory.date.desc())
         .all()
     )
+    return MessageResponse(
+        message="Salary history retrieved successfully",
+        data=[SalaryHistoryOut.model_validate(history) for history in response]
+    )
 
 
-@router.put("/salary-history/{history_id}", response_model=SalaryHistoryOut)
+@router.put("/salary-history/{history_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def update_salary_history(
     history_id: UUID,
     body: SalaryHistoryUpdate,
@@ -205,10 +245,13 @@ def update_salary_history(
         setattr(record, field, value)
     db.commit()
     db.refresh(record)
-    return record
+    return MessageResponse(
+        message="Salary history updated successfully",
+        data=SalaryHistoryOut.model_validate(record)
+    )
 
 
-@router.delete("/salary-history/{history_id}", status_code=204)
+@router.delete("/salary-history/{history_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_salary_history(
     history_id: UUID,
     db: Session = Depends(get_db),

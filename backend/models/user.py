@@ -1,10 +1,12 @@
 import uuid
 from datetime import datetime
+from enum import Enum
 
 from sqlalchemy import (
     Boolean,
     Column,
     Date,
+    Enum as SAEnum,
     DateTime,
     ForeignKey,
     Integer,
@@ -15,6 +17,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from db.base import Base, TimestampMixin
+from schemas.auth import Role
 
 
 # Employee table with references to admin (creator) and manager
@@ -66,7 +69,7 @@ class User(Base, TimestampMixin):
     email = Column(String, unique=True, index=True, nullable=False)
     full_name = Column(String, nullable=True)
     hashed_password = Column(String, nullable=False)
-    is_admin = Column(Boolean, default=False)
+    role = Column(SAEnum(Role), default=Role.EMPLOYEE)
     is_active = Column(Boolean, default=True)
     password_reset_token = Column(String, nullable=True)
     password_reset_expires = Column(DateTime, nullable=True)
