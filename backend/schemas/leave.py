@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -9,6 +10,13 @@ class LeaveCreate(BaseModel):
     end_date: date
     type: str = ""
     reason: str = ""
+
+
+class LeaveUpdate(BaseModel):
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    type: Optional[str] = None
+    reason: Optional[str] = None
 
 
 

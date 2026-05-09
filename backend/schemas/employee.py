@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Optional
 from uuid import UUID
 
@@ -9,8 +10,12 @@ class EmployeeCreate(BaseModel):
     email: EmailStr
     phone: Optional[str] = None
     address: Optional[str] = None
-    position: Optional[str] = None
+    designation: Optional[str] = None
     department: Optional[str] = None
+    dob: Optional[date] = None
+    gender: Optional[str] = None
+    date_joined: Optional[date] = None
+    salary: Optional[str] = None
     manager_id: Optional[UUID] = None
 
 
@@ -19,8 +24,12 @@ class EmployeeUpdate(BaseModel):
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
     address: Optional[str] = None
-    position: Optional[str] = None
+    designation: Optional[str] = None
     department: Optional[str] = None
+    dob: Optional[date] = None
+    gender: Optional[str] = None
+    date_joined: Optional[date] = None
+    salary: Optional[str] = None
     manager_id: Optional[UUID] = None
 
 
@@ -28,15 +37,24 @@ class EmployeeOut(BaseModel):
     id: UUID
     full_name: str
     email: EmailStr
-    phone: Optional[str]
-    address: Optional[str]
-    position: Optional[str]
-    department: Optional[str]
-    manager_id: Optional[UUID]
-    admin_id: UUID
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    designation: Optional[str] = None
+    department: Optional[str] = None
+    dob: Optional[date] = None
+    gender: Optional[str] = None
+    date_joined: Optional[date] = None
+    salary: Optional[str] = None
+    manager_id: Optional[UUID] = None
+    created_by_admin_id: UUID
+    is_active: bool = True
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+
+class EmployeeStatusUpdate(BaseModel):
+    is_active: bool
 
 
 class IdCardCreate(BaseModel):
@@ -51,3 +69,6 @@ class IdCardCreate(BaseModel):
 
 class IdCardOut(IdCardCreate):
     id: str
+
+    class Config:
+        from_attributes = True

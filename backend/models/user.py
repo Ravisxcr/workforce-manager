@@ -30,6 +30,7 @@ class Employee(Base,TimestampMixin):
     designation = Column(String, nullable=True)
     date_joined = Column(Date, nullable=True)
     salary = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
     # Reference to admin who created this employee
     created_by_admin_id = Column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
@@ -59,6 +60,8 @@ class User(Base, TimestampMixin):
     hashed_password = Column(String, nullable=False)
     is_admin = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
+    password_reset_token = Column(String, nullable=True)
+    password_reset_expires = Column(DateTime, nullable=True)
 
 
 class IdCard(Base, TimestampMixin):

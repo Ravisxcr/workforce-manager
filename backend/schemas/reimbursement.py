@@ -12,27 +12,34 @@ class ReimbursementCreate(BaseModel):
     type: str
 
 
+class ReimbursementUpdate(BaseModel):
+    amount: Optional[str] = None
+    description: Optional[str] = None
+    date: Optional[date] = None
+    type: Optional[str] = None
+
+
 class ReimbursementUpdateStatus(BaseModel):
     status: str
     remarks: Optional[str] = None
     date_approved: Optional[date] = None
-    approved_by_id: Optional[UUID] = None
 
 
 class ReimbursementOut(BaseModel):
     id: UUID
     employee_id: UUID
     amount: str
-    description: Optional[str]
-    date_requested: date
+    description: Optional[str] = None
+    date: date
+    type: str
     status: str
-    approved_by_id: Optional[UUID]
-    date_approved: Optional[date]
-    receipt_url: Optional[str]
-    remarks: Optional[str]
+    approved_by_id: Optional[UUID] = None
+    date_approved: Optional[date] = None
+    receipt_url: Optional[str] = None
+    remarks: Optional[str] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ReimbursementAnalytics(BaseModel):

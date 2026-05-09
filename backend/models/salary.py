@@ -1,7 +1,6 @@
 import uuid
 
-from sqlalchemy import (Column, Date, DateTime, Float, ForeignKey, Integer,
-                        String)
+from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 
 from db.base import Base, TimestampMixin
@@ -17,7 +16,7 @@ class SalarySlip(Base, TimestampMixin):
         unique=True,
         nullable=False,
     )
-    employee_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    employee_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     month = Column(String, nullable=False)
     year = Column(Integer, nullable=False)
     basic = Column(Float, nullable=False)
@@ -38,7 +37,7 @@ class SalaryHistory(Base, TimestampMixin):
         unique=True,
         nullable=False,
     )
-    employee_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    employee_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     amount = Column(Float, nullable=False)
     date = Column(DateTime, nullable=False)
     remarks = Column(String, nullable=True)
