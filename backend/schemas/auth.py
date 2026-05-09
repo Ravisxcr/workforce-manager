@@ -7,9 +7,14 @@ class UserSignUp(BaseModel):
     password: str = "strongpassword"
 
 
-class UserLogin(BaseModel):
+class UserLoginRequest(BaseModel):
     email: str = "user@example.com"
     password: str = "strongpassword"
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
 
 
 class ChangePassword(BaseModel):

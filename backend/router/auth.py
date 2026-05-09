@@ -12,7 +12,8 @@ from schemas.auth import (
     ChangePassword,
     ForgotPassword,
     ResetPassword,
-    UserLogin,
+    TokenResponse,
+    UserLoginRequest,
     UserSignUp,
 )
 from services.auth import (
@@ -29,13 +30,17 @@ from utils.config import settings
 router = APIRouter()
 
 
-@router.post("/login", response_model=dict, status_code=status.HTTP_200_OK)
-def login(user_login: UserLogin, db: Session = Depends(get_db)):
+@router.post("/login", response_model=TokenResponse, status_code=status.HTTP_200_OK)
+def login(user_login: UserLoginRequest, db: Session = Depends(get_db)):
     user = authenticate_user(db, user_login.email, user_login.password)
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+        )
     token = create_access_token({"sub": user.email, "is_admin": user.is_admin})
-    return {"access_token": token, "token_type": "bearer", "is_admin": user.is_admin}
+    return TokenResponse(
+        access_token=token, token_type="bearer", is_admin=user.is_admin
+    )
 
 
 @router.post("/logout")
@@ -48,9 +53,14 @@ def logout(current_user: User = Depends(get_current_active_user)):
 @router.post("/add-user")
 def add_user(new_user: UserSignUp, db: Session = Depends(get_db)):
     if settings.ENABLE_ADD_USER is False:
-        raise HTTPException(status_code=403, detail="Add user endpoint is disabled")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Add user endpoint is disabled",
+        )
     if db.query(User).filter(User.email == new_user.email).first():
-        raise HTTPException(status_code=400, detail="Email already exists")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists"
+        )
     user = User(
         email=new_user.email,
         full_name=new_user.full_name,
