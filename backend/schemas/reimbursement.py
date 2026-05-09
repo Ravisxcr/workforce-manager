@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -14,14 +14,14 @@ class ReimbursementCreate(BaseModel):
 class ReimbursementUpdate(BaseModel):
     amount: str | None = None
     description: str | None = None
-    date: date | None = None
+    date: datetime | None = None
     type: str | None = None
 
 
 class ReimbursementUpdateStatus(BaseModel):
     status: str
     remarks: str | None = None
-    date_approved: date | None = None
+    date_approved: datetime | None = None
 
 
 class ReimbursementOut(BaseModel):
@@ -29,11 +29,11 @@ class ReimbursementOut(BaseModel):
     employee_id: UUID
     amount: str
     description: str | None = None
-    date: date
+    date: datetime
     type: str
     status: str
     approved_by_id: UUID | None = None
-    date_approved: date | None = None
+    date_approved: datetime | None = None
     receipt_url: str | None = None
     remarks: str | None = None
 

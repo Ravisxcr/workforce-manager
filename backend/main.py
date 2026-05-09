@@ -1,6 +1,7 @@
 import logging
 import traceback
 
+import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -17,7 +18,7 @@ from router import (
     salary,
 )
 
-app = FastAPI(title="Workforce Manager API", version="2.0.0")
+app = FastAPI(title="Workforce Manager API", version="2.0.0", prefix="/api/v1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -47,8 +48,6 @@ app.include_router(department.router, prefix="/department", tags=["Department"])
 app.include_router(notification.router, prefix="/notification", tags=["Notification"])
 
 if __name__ == "__main__":
-    import uvicorn
-
     uvicorn.run(
         "main:app", host="0.0.0.0", port=8000, reload=True, log_level=logging.DEBUG
     )
