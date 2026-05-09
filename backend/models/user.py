@@ -16,21 +16,16 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from db.base import Base, TimestampMixin
+from db.base import Base, TimestampMixin, IdMixin
 from schemas.auth import Role
 
 
 # Employee table with references to admin (creator) and manager
-class Employee(Base, TimestampMixin):
+class Employee(Base, TimestampMixin, IdMixin):
     __tablename__ = "employees"
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=uuid.uuid4,
-        unique=True,
-        nullable=False,
-    )
+
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user = relationship("User", back_populates="employee_profile", foreign_keys=[user_id])
     email = Column(String, unique=True, index=True, nullable=False)
     full_name = Column(String, nullable=False)
     phone = Column(String, nullable=True)
@@ -56,16 +51,9 @@ class Employee(Base, TimestampMixin):
     )
 
 
-class User(Base, TimestampMixin):
+class User(Base, TimestampMixin, IdMixin):
     __tablename__ = "users"
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=uuid.uuid4,
-        unique=True,
-        nullable=False,
-    )
+
     email = Column(String, unique=True, index=True, nullable=False)
     full_name = Column(String, nullable=True)
     hashed_password = Column(String, nullable=False)
@@ -74,18 +62,27 @@ class User(Base, TimestampMixin):
     password_reset_token = Column(String, nullable=True)
     password_reset_expires = Column(DateTime, nullable=True)
 
-
-class IdCard(Base, TimestampMixin):
-    __tablename__ = "id_cards"
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=uuid.uuid4,
-        unique=True,
-        nullable=False,
+    employee_profile = relationship(
+        "Employee", 
+        back_populates="user", 
+        uselist=False, 
+        cascade="all, delete-orphan",
+        foreign_keys="Employee.user_id"
     )
-    employee_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    attendances = relationship("Attendance", back_populates="user", cascade="all, delete-orphan", foreign_keys="Attendance.user_id")
+    leaves = relationship("Leave", back_populates="user", cascade="all, delete-orphan", foreign_keys="Leave.user_id")
+    reimbursements = relationship("Reimbursement", back_populates="user", cascade="all, delete-orphan", foreign_keys="Reimbursement.user_id")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan", foreign_keys="Notification.user_id")
+    salary_slips = relationship("SalarySlip", back_populates="user", cascade="all, delete-orphan", foreign_keys="SalarySlip.user_id")
+    salary_history = relationship("SalaryHistory", back_populates="user", cascade="all, delete-orphan", foreign_keys="SalaryHistory.user_id")
+    documents = relationship("Document", back_populates="owner", cascade="all, delete-orphan", foreign_keys="Document.user_id")
+    id_card = relationship("IdCard", back_populates="user", uselist=False, cascade="all, delete-orphan", foreign_keys="IdCard.user_id")
+
+
+class IdCard(Base, TimestampMixin, IdMixin):
+    __tablename__ = "id_cards"
+
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     name = Column(String, nullable=False)
     designation = Column(String, nullable=False)
     department = Column(String, nullable=False)
@@ -93,24 +90,20 @@ class IdCard(Base, TimestampMixin):
     expiry_date = Column(String, nullable=False)
     card_number = Column(String, unique=True, nullable=False)
 
+    user = relationship("User", back_populates="id_card", foreign_keys=[user_id])
+
 
 # Document table for upload, verification, audit, and approval tracking
-class Document(Base, TimestampMixin):
+class Document(Base, TimestampMixin, IdMixin):
     __tablename__ = "documents"
     __table_args__ = (
         UniqueConstraint(
-            "employee_id", "document_type", name="uq_employee_document_type"
+            "user_id", "document_type", name="uq_user_document_type"
         ),
     )
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=uuid.uuid4,
-        unique=True,
-        nullable=False,
-    )
-    employee_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    owner = relationship("User", back_populates="documents", foreign_keys=[user_id])
     document_type = Column(String, nullable=False)
     description = Column(String, nullable=True)
     file_path = Column(String, nullable=False)
@@ -118,6 +111,8 @@ class Document(Base, TimestampMixin):
     uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     comment = Column(String, nullable=True)
     verified_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    verified_by = relationship("User", foreign_keys=[verified_by_id])
     verified_at = Column(DateTime, nullable=True)
     approved_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    approved_by = relationship("User", foreign_keys=[approved_by_id])
     approved_at = Column(DateTime, nullable=True)

@@ -27,7 +27,7 @@ class ReimbursementUpdateStatus(BaseModel):
 
 class ReimbursementOut(BaseModel):
     id: UUID
-    employee_id: UUID
+    user_id: UUID
     amount: str
     description: str | None = None
     date: datetime.date

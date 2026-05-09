@@ -42,7 +42,7 @@ def create_reimbursement(
 ):
     receipt_url = _save_receipt(receipt, current_user.id) if receipt else None
     db_reim = Reimbursement(
-        **reimbursement.dict(), employee_id=current_user.id, receipt_url=receipt_url
+        **reimbursement.dict(), user_id=current_user.id, receipt_url=receipt_url
     )
     db.add(db_reim)
     db.commit()
@@ -62,7 +62,7 @@ def get_my_reimbursements(
         message="My reimbursements retrieved successfully",
         data=[ReimbursementOut.model_validate(reim) for reim in (
             db.query(Reimbursement)
-            .filter(Reimbursement.employee_id == current_user.id)
+            .filter(Reimbursement.user_id == current_user.id)
             .all()
         )]
     )
@@ -111,7 +111,7 @@ def get_reimbursement(
     reim = db.query(Reimbursement).filter(Reimbursement.id == reimbursement_id).first()
     if not reim:
         raise HTTPException(status_code=404, detail="Reimbursement not found")
-    if reim.employee_id != current_user.id and not current_user.is_admin:
+    if reim.user_id != current_user.id and not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Not authorized")
     return MessageResponse(
         message="Reimbursement retrieved successfully",
@@ -130,7 +130,7 @@ def update_reimbursement(
         db.query(Reimbursement)
         .filter(
             Reimbursement.id == reimbursement_id,
-            Reimbursement.employee_id == current_user.id,
+            Reimbursement.user_id == current_user.id,
         )
         .first()
     )
@@ -160,7 +160,7 @@ def delete_reimbursement(
         db.query(Reimbursement)
         .filter(
             Reimbursement.id == reimbursement_id,
-            Reimbursement.employee_id == current_user.id,
+            Reimbursement.user_id == current_user.id,
         )
         .first()
     )

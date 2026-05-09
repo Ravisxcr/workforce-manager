@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 
 class NotificationSend(BaseModel):
-    employee_id: UUID
+    user_id: UUID
     title: str
     message: str
     type: str = "info"
@@ -13,7 +13,7 @@ class NotificationSend(BaseModel):
 
 
 class NotificationBroadcast(BaseModel):
-    employee_ids: list[UUID]
+    user_ids: list[UUID]
     title: str
     message: str
     type: str = "info"
@@ -22,7 +22,7 @@ class NotificationBroadcast(BaseModel):
 
 class NotificationOut(BaseModel):
     id: UUID
-    employee_id: UUID
+    user_id: UUID
     title: str
     message: str
     is_read: bool

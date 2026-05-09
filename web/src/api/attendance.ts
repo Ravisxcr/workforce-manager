@@ -12,7 +12,7 @@ export const getMyAttendance = (params?: { month?: number; year?: number }) =>
 
 export const getTodayAttendance = () => get<AttendanceOut[]>('/attendance/today')
 
-export const getMonthlyAttendance = (params: { month: number; year: number; employee_id?: string }) =>
+export const getMonthlyAttendance = (params: { month: number; year: number; user_id?: string }) =>
   get<AttendanceOut[]>('/attendance/monthly', params)
 
 export const getAttendanceAnalytics = (params: { month: number; year: number }) =>

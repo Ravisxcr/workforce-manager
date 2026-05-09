@@ -24,7 +24,7 @@ def get_my_notifications(
 ):
     response = (
         db.query(Notification)
-        .filter(Notification.employee_id == current_user.id)
+        .filter(Notification.user_id == current_user.id)
         .order_by(Notification.created_at.desc())
         .all()
     )
@@ -42,7 +42,7 @@ def get_unread_count(
     count = (
         db.query(Notification)
         .filter(
-            Notification.employee_id == current_user.id, Notification.is_read.is_(False)
+            Notification.user_id == current_user.id, Notification.is_read.is_(False)
         )
         .count()
     )
@@ -62,7 +62,7 @@ def mark_as_read(
         db.query(Notification)
         .filter(
             Notification.id == notification_id,
-            Notification.employee_id == current_user.id,
+            Notification.user_id == current_user.id,
         )
         .first()
     )
@@ -83,7 +83,7 @@ def mark_all_read(
     current_user: User = Depends(get_current_active_user),
 ):
     db.query(Notification).filter(
-        Notification.employee_id == current_user.id,
+        Notification.user_id == current_user.id,
         Notification.is_read.is_(False),
     ).update({"is_read": True})
     db.commit()
@@ -116,7 +116,7 @@ def delete_notification(
         db.query(Notification)
         .filter(
             Notification.id == notification_id,
-            Notification.employee_id == current_user.id,
+            Notification.user_id == current_user.id,
         )
         .first()
     )
@@ -134,9 +134,9 @@ def broadcast_notification(
     current_user: User = Depends(admin_required),
 ):
     notifications = []
-    for employee_id in body.employee_ids:
+    for user_id in body.user_ids:
         notif = Notification(
-            employee_id=employee_id,
+            user_id=user_id,
             title=body.title,
             message=body.message,
             type=body.type,

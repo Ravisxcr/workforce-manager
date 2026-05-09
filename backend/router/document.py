@@ -53,7 +53,7 @@ def upload_document(
     with open(file_path, "wb") as f:
         f.write(file.file.read())
     doc = Document(
-        employee_id=current_user.id,
+        user_id=current_user.id,
         document_type=document_type,
         description=description,
         file_path=file_path,
@@ -82,7 +82,7 @@ def get_my_documents(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    documents = db.query(Document).filter(Document.employee_id == current_user.id).all()
+    documents = db.query(Document).filter(Document.user_id == current_user.id).all()
     return MessageResponse(
         message="Documents retrieved successfully",
         data=[DocumentOut.model_validate(doc) for doc in documents]
@@ -142,7 +142,7 @@ def delete_document(
     doc = db.query(Document).filter(Document.id == document_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
-    if doc.employee_id != current_user.id and not current_user.is_admin:
+    if doc.user_id != current_user.id and not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Not authorized")
     if os.path.exists(doc.file_path):
         os.remove(doc.file_path)
@@ -160,7 +160,7 @@ def get_document_file(
     doc = db.query(Document).filter(Document.id == document_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
-    if doc.employee_id != current_user.id and not current_user.is_admin:
+    if doc.user_id != current_user.id and not current_user.is_admin:
         raise HTTPException(
             status_code=403, detail="Not authorized to access this file"
         )

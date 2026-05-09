@@ -13,7 +13,7 @@ class AttendanceCheckOut(BaseModel):
 
 
 class AttendanceManualEntry(BaseModel):
-    employee_id: UUID
+    user_id: UUID
     date: date
     check_in: datetime | None = None
     check_out: datetime | None = None
@@ -30,7 +30,7 @@ class AttendanceUpdate(BaseModel):
 
 class AttendanceOut(BaseModel):
     id: UUID
-    employee_id: UUID
+    user_id: UUID
     date: date
     check_in: datetime | None = None
     check_out: datetime | None = None
@@ -44,7 +44,7 @@ class AttendanceOut(BaseModel):
 
 
 class AttendanceAnalytics(BaseModel):
-    employee_id: UUID
+    user_id: UUID
     employee_name: str
     total_days: int
     present_days: int

@@ -42,7 +42,7 @@ def check_in(
     existing = (
         db.query(Attendance)
         .filter(
-            Attendance.employee_id == current_user.id,
+            Attendance.user_id == current_user.id,
             Attendance.date == today,
         )
         .first()
@@ -51,7 +51,7 @@ def check_in(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Already checked in today")
     now = datetime.now(UTC).replace(tzinfo=None)
     record = Attendance(
-        employee_id=current_user.id,
+        user_id=current_user.id,
         date=today,
         check_in=now,
         status="present",
@@ -77,7 +77,7 @@ def check_out(
     record = (
         db.query(Attendance)
         .filter(
-            Attendance.employee_id == current_user.id,
+            Attendance.user_id == current_user.id,
             Attendance.date == today,
         )
         .first()
@@ -106,7 +106,7 @@ def get_my_attendance(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    q = db.query(Attendance).filter(Attendance.employee_id == current_user.id)
+    q = db.query(Attendance).filter(Attendance.user_id == current_user.id)
     if month and year:
         import calendar as cal
 
@@ -130,7 +130,7 @@ def get_today_attendance(
     today = date.today()
     q = db.query(Attendance).filter(Attendance.date == today)
     if not current_user.role == Role.ADMIN.value:
-        q = q.filter(Attendance.employee_id == current_user.id)
+        q = q.filter(Attendance.user_id == current_user.id)
     return MessageResponse(
         message="Today's attendance records retrieved successfully",
         data=[AttendanceOut.model_validate(record) for record in q.all()]
@@ -141,7 +141,7 @@ def get_today_attendance(
 def get_monthly_attendance(
     month: int = Query(..., ge=1, le=12),
     year: int = Query(...),
-    employee_id: UUID | None = Query(None),
+    user_id: UUID | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
@@ -151,9 +151,9 @@ def get_monthly_attendance(
     end = date(year, month, cal.monthrange(year, month)[1])
     q = db.query(Attendance).filter(Attendance.date >= start, Attendance.date <= end)
     if not current_user.role == Role.ADMIN.value:
-        q = q.filter(Attendance.employee_id == current_user.id)
-    elif employee_id:
-        q = q.filter(Attendance.employee_id == employee_id)
+        q = q.filter(Attendance.user_id == current_user.id)
+    elif user_id:
+        q = q.filter(Attendance.user_id == user_id)
     return MessageResponse(
         message="Monthly attendance records retrieved successfully",
         data=[AttendanceOut.model_validate(record) for record in q.order_by(Attendance.date.asc()).all()]
@@ -178,7 +178,7 @@ def get_attendance_analytics(
 
     by_employee: dict = {}
     for r in records:
-        eid = r.employee_id
+        eid = r.user_id
         by_employee.setdefault(eid, []).append(r)
 
     result = []
@@ -187,7 +187,7 @@ def get_attendance_analytics(
         work_hours = [r.work_hours for r in emp_records if r.work_hours]
         result.append(
             AttendanceAnalytics(
-                employee_id=eid,
+                user_id=eid,
                 employee_name=user.full_name or user.email if user else eid,
                 total_days=len(emp_records),
                 present_days=sum(1 for r in emp_records if r.status == "present"),
@@ -213,7 +213,7 @@ def manual_attendance_entry(
     existing = (
         db.query(Attendance)
         .filter(
-            Attendance.employee_id == body.employee_id,
+            Attendance.user_id == body.user_id,
             Attendance.date == body.date,
         )
         .first()
@@ -223,7 +223,7 @@ def manual_attendance_entry(
             status_code=400, detail="Attendance already exists for this date"
         )
     record = Attendance(
-        employee_id=body.employee_id,
+        user_id=body.user_id,
         date=body.date,
         check_in=body.check_in,
         check_out=body.check_out,
@@ -277,15 +277,15 @@ def delete_attendance(
     return None
 
 
-@router.get("/{employee_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.get("/{user_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_employee_attendance(
-    employee_id: UUID,
+    user_id: UUID,
     month: int | None = Query(None, ge=1, le=12),
     year: int | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(admin_required),
 ):
-    q = db.query(Attendance).filter(Attendance.employee_id == employee_id)
+    q = db.query(Attendance).filter(Attendance.user_id == user_id)
     if month and year:
         import calendar as cal
 

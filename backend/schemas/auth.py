@@ -36,8 +36,6 @@ class TokenResponse(BaseModel):
     role: Role
 
 
-
-
 class ChangePassword(BaseModel):
     current_password: str
     new_password: str

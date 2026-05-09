@@ -11,7 +11,7 @@ class DocumentUpload(BaseModel):
 
 class DocumentOut(BaseModel):
     id: UUID
-    employee_id: UUID
+    user_id: UUID
     document_type: str
     description: str | None
     file_path: str

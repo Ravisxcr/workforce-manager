@@ -43,22 +43,22 @@ def get_my_salary_slips(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    response = db.query(SalarySlip).filter(SalarySlip.employee_id == current_user.id).all()
+    response = db.query(SalarySlip).filter(SalarySlip.user_id == current_user.id).all()
     return MessageResponse(
         message="Salary slips retrieved successfully",
         data=[SalarySlipOut.model_validate(slip) for slip in response]
     )
 
 
-@router.get("/salary-slip/{employee_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.get("/salary-slip/{user_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_salary_slips(
-    employee_id: UUID,
+    user_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    if str(current_user.id) != str(employee_id) and not current_user.is_admin:
+    if str(current_user.id) != str(user_id) and not current_user.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
-    response = db.query(SalarySlip).filter(SalarySlip.employee_id == employee_id).all()
+    response = db.query(SalarySlip).filter(SalarySlip.user_id == user_id).all()
     return MessageResponse(
         message="Salary slips retrieved successfully",
         data=[SalarySlipOut.model_validate(slip) for slip in response]
@@ -88,7 +88,7 @@ def get_my_salary_history(
 ):
     response = (
         db.query(SalaryHistory)
-        .filter(SalaryHistory.employee_id == current_user.id)
+        .filter(SalaryHistory.user_id == current_user.id)
         .order_by(SalaryHistory.date.desc())
         .all()
     )
@@ -105,7 +105,7 @@ def get_salary_history(
 ):
     response = (
         db.query(SalaryHistory)
-        .filter(SalaryHistory.employee_id == current_user.id)
+        .filter(SalaryHistory.user_id == current_user.id)
         .order_by(SalaryHistory.date.desc())
         .all()
     )
@@ -129,7 +129,7 @@ def get_salary_analytics(
 
     by_employee: dict = {}
     for slip in slips:
-        eid = str(slip.employee_id)
+        eid = str(slip.user_id)
         by_employee.setdefault(eid, []).append(slip)
 
     items = []
@@ -140,7 +140,7 @@ def get_salary_analytics(
         latest = sorted(emp_slips, key=lambda s: (s.year, s.month), reverse=True)[0]
         items.append(
             SalaryAnalyticsItem(
-                employee_id=eid,
+                user_id=eid,
                 total_slips=len(emp_slips),
                 avg_net_pay=sum(net_pays) / len(net_pays),
                 latest_net_pay=latest.net_pay,
@@ -159,15 +159,15 @@ def get_salary_analytics(
 
 @router.get("/salary-slip", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def list_all_salary_slips(
-    employee_id: UUID | None = Query(None),
+    user_id: UUID | None = Query(None),
     month: str | None = Query(None),
     year: int | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(admin_required),
 ):
     q = db.query(SalarySlip)
-    if employee_id:
-        q = q.filter(SalarySlip.employee_id == employee_id)
+    if user_id:
+        q = q.filter(SalarySlip.user_id == user_id)
     if month:
         q = q.filter(SalarySlip.month == month)
     if year:
@@ -213,15 +213,15 @@ def delete_salary_slip(
     return None
 
 
-@router.get("/salary-history/{employee_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.get("/salary-history/{user_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_employee_salary_history(
-    employee_id: UUID,
+    user_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(admin_required),
 ):
     response = (
         db.query(SalaryHistory)
-        .filter(SalaryHistory.employee_id == employee_id)
+        .filter(SalaryHistory.user_id == user_id)
         .order_by(SalaryHistory.date.desc())
         .all()
     )

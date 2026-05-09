@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 
 class SalarySlipCreate(BaseModel):
-    employee_id: UUID
+    user_id: UUID
     month: str
     year: int
     basic: float
@@ -19,7 +19,7 @@ class SalarySlipCreate(BaseModel):
 
 class SalarySlipOut(BaseModel):
     id: UUID
-    employee_id: UUID
+    user_id: UUID
     month: str
     year: int
     basic: float
@@ -34,7 +34,7 @@ class SalarySlipOut(BaseModel):
 
 
 class SalaryHistoryCreate(BaseModel):
-    employee_id: UUID
+    user_id: UUID
     amount: float
     date: datetime
     remarks: str = ""
@@ -42,7 +42,7 @@ class SalaryHistoryCreate(BaseModel):
 
 class SalaryHistoryOut(BaseModel):
     id: UUID
-    employee_id: UUID
+    user_id: UUID
     amount: float
     date: datetime
     remarks: str | None = None
@@ -69,7 +69,7 @@ class SalaryHistoryUpdate(BaseModel):
 
 
 class SalaryAnalyticsItem(BaseModel):
-    employee_id: str
+    user_id: str
     total_slips: int
     avg_net_pay: float
     latest_net_pay: float | None = None

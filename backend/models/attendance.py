@@ -2,21 +2,15 @@ import uuid
 
 from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 
-from db.base import Base, TimestampMixin
+from db.base import Base, TimestampMixin, IdMixin
 
 
-class Attendance(Base, TimestampMixin):
+class Attendance(Base, TimestampMixin, IdMixin):
     __tablename__ = "attendance"
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=uuid.uuid4,
-        unique=True,
-        nullable=False,
-    )
-    employee_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     date = Column(Date, nullable=False, index=True)
     check_in = Column(DateTime, nullable=True)
     check_out = Column(DateTime, nullable=True)
@@ -26,3 +20,6 @@ class Attendance(Base, TimestampMixin):
     notes = Column(String, nullable=True)
     is_manual = Column(Boolean, default=False)
     marked_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+
+    user = relationship("User", back_populates="attendances", foreign_keys=[user_id])
+    marked_by = relationship("User", foreign_keys=[marked_by_id])

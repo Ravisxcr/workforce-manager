@@ -181,12 +181,12 @@ def create_id_card(
     )
 
 
-@router.get("/id-card/verify/{employee_id}", response_model=MessageResponse)
+@router.get("/id-card/verify/{user_id}", response_model=MessageResponse)
 def verify_id_card(
-    employee_id: str,
+    user_id: str,
     db: Session = Depends(get_db),
 ):
-    cards = db.query(IdCard).filter(IdCard.employee_id == employee_id).all()
+    cards = db.query(IdCard).filter(IdCard.user_id == user_id).all()
     return MessageResponse(
         message="ID cards verified successfully",
         data=[IdCardOut.model_validate(card) for card in cards]
@@ -198,7 +198,7 @@ def get_my_id_cards(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    cards = db.query(IdCard).filter(IdCard.employee_id == str(current_user.id)).all()
+    cards = db.query(IdCard).filter(IdCard.user_id == str(current_user.id)).all()
     return MessageResponse(
         message="ID cards retrieved successfully",
         data=[IdCardOut.model_validate(card) for card in cards]

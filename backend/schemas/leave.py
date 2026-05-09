@@ -20,7 +20,7 @@ class LeaveUpdate(BaseModel):
 
 class LeaveOut(LeaveCreate):
     id: UUID
-    employee_id: UUID
+    user_id: UUID
     start_date: date
     end_date: date
     reason: str = ""
@@ -37,7 +37,7 @@ class LeaveListResponse(BaseModel):
 
 
 class LeaveAnalyticsItem(BaseModel):
-    employee_id: str
+    user_id: str
     employee_name: str
     approved_leaves: int
     cancelled_leaves: int

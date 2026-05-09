@@ -48,7 +48,7 @@ export default function AttendancePage() {
 
   const [manualOpen, setManualOpen] = useState(false)
   const [manualForm, setManualForm] = useState({
-    employee_id: '', date: '', check_in: '', check_out: '', status: 'present', notes: '',
+    user_id: '', date: '', check_in: '', check_out: '', status: 'present', notes: '',
   })
 
   const hasTodayCheckin = todayAtt.some((a) => a.check_in && !a.check_out)
@@ -113,7 +113,7 @@ export default function AttendancePage() {
   const handleManualEntry = async () => {
     try {
       await manualEntry({
-        employee_id: manualForm.employee_id,
+        user_id: manualForm.user_id,
         date: manualForm.date,
         check_in: manualForm.check_in || undefined,
         check_out: manualForm.check_out || undefined,
@@ -269,7 +269,7 @@ export default function AttendancePage() {
               <StatCard title="Total Absent" value={totalAbsent} icon={BarChart3} description="across all employees" />
               <StatCard title="Employees Tracked" value={analytics.length} icon={Clock} description="this month" />
             </div>
-            <DataTable columns={analyticsColumns} data={analytics} isLoading={loading} rowKey={(a) => a.employee_id} />
+            <DataTable columns={analyticsColumns} data={analytics} isLoading={loading} rowKey={(a) => a.user_id} />
           </TabsContent>
           </>
         )}
@@ -282,7 +282,7 @@ export default function AttendancePage() {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Employee</Label>
-              <Select value={manualForm.employee_id} onValueChange={(v) => setManualForm({ ...manualForm, employee_id: v })}>
+              <Select value={manualForm.user_id} onValueChange={(v) => setManualForm({ ...manualForm, user_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
                   {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}

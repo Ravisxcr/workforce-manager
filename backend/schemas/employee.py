@@ -57,7 +57,7 @@ class EmployeeStatusUpdate(BaseModel):
 
 
 class IdCardCreate(BaseModel):
-    employee_id: str
+    user_id: str
     name: str
     designation: str
     department: str

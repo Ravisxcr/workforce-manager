@@ -33,7 +33,7 @@ def _leave_to_out(leave_obj: Leave, db: Session) -> LeaveOut:
             approver_name = approver.full_name or approver.email
     return LeaveOut(
         id=str(leave_obj.id),
-        employee_id=str(leave_obj.employee_id),
+        user_id=str(leave_obj.user_id),
         start_date=leave_obj.start_date,
         end_date=leave_obj.end_date,
         type=leave_obj.type or "",
@@ -59,7 +59,7 @@ def create_leave(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    leave_obj = Leave(**leave.dict(), employee_id=current_user.id, status="pending")
+    leave_obj = Leave(**leave.dict(), user_id=current_user.id, status="pending")
     db.add(leave_obj)
     db.commit()
     db.refresh(leave_obj)
@@ -78,7 +78,7 @@ def get_leaves(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    leaves = db.query(Leave).filter(Leave.employee_id == current_user.id).all()
+    leaves = db.query(Leave).filter(Leave.user_id == current_user.id).all()
     stmt = select(
         func.sum(case((Leave.type == "casual", _days_expr()), else_=0)).label(
             "casual_leave"
@@ -89,7 +89,7 @@ def get_leaves(
         func.sum(case((Leave.type == "earned", _days_expr()), else_=0)).label(
             "earned_leave"
         ),
-    ).where(Leave.employee_id == current_user.id, Leave.status == "approved")
+    ).where(Leave.user_id == current_user.id, Leave.status == "approved")
     result = db.execute(stmt).one()
     return MessageResponse(
         message="Leaves retrieved successfully",
@@ -118,7 +118,7 @@ def get_leave_balance(
         func.sum(case((Leave.type == "earned", _days_expr()), else_=0)).label(
             "earned_leave"
         ),
-    ).where(Leave.employee_id == current_user.id, Leave.status == "approved")
+    ).where(Leave.user_id == current_user.id, Leave.status == "approved")
     result = db.execute(stmt).one()
     # Standard annual entitlements (adjust as needed)
     casual_total, sick_total, earned_total = 12, 12, 15
@@ -170,7 +170,7 @@ def get_leave_calendar(
         Leave.end_date >= start,
     )
     if not current_user.is_admin:
-        query = query.filter(Leave.employee_id == current_user.id)
+        query = query.filter(Leave.user_id == current_user.id)
 
     leaves = query.all()
     return MessageResponse(
@@ -178,7 +178,7 @@ def get_leave_calendar(
         data=[
             {
                 "id": str(lv.id),
-                "employee_id": str(lv.employee_id),
+                "user_id": str(lv.user_id),
                 "type": lv.type,
                 "start_date": str(lv.start_date),
                 "end_date": str(lv.end_date),
@@ -282,7 +282,7 @@ def update_leave(
 ):
     leave_obj = (
         db.query(Leave)
-        .filter(Leave.id == leave_id, Leave.employee_id == current_user.id)
+        .filter(Leave.id == leave_id, Leave.user_id == current_user.id)
         .first()
     )
     if not leave_obj:
@@ -309,7 +309,7 @@ def delete_leave(
 ):
     leave_obj = (
         db.query(Leave)
-        .filter(Leave.id == leave_id, Leave.employee_id == current_user.id)
+        .filter(Leave.id == leave_id, Leave.user_id == current_user.id)
         .first()
     )
     if not leave_obj:
@@ -334,7 +334,7 @@ def request_leave_cancellation(
 ):
     leave_obj = (
         db.query(Leave)
-        .filter(Leave.id == leave_id, Leave.employee_id == current_user.id)
+        .filter(Leave.id == leave_id, Leave.user_id == current_user.id)
         .first()
     )
     if not leave_obj:
@@ -389,10 +389,10 @@ def leave_analytics(
     users = db.query(User).all()
     analytics = []
     for user in users:
-        leaves = db.query(Leave).filter(Leave.employee_id == user.id).all()
+        leaves = db.query(Leave).filter(Leave.user_id == user.id).all()
         analytics.append(
             LeaveAnalyticsItem(
-                employee_id=str(user.id),
+                user_id=str(user.id),
                 employee_name=user.full_name or user.email,
                 approved_leaves=sum(1 for lv in leaves if lv.status == "approved"),
                 cancelled_leaves=sum(1 for lv in leaves if lv.status == "cancelled"),

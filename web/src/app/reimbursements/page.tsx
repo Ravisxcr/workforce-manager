@@ -126,7 +126,7 @@ export default function ReimbursementsPage() {
   }, [allReimb, statusFilter]);
 
   const myColumns: Column<ReimbursementOut>[] = [
-    { key: 'type', header: 'Type', cell: (r) => <span className="font-medium capitalize">{r.type}</span> },
+    { key: 'type', header: 'Type', cell: (r) => <span className="font-medium capitalize">{r.remarks}</span> },
     { key: 'amount', header: 'Amount', cell: (r) => <span className="font-semibold">₹{Number(r.amount).toLocaleString()}</span> },
     { key: 'date', header: 'Date', cell: (r) => format(new Date(r.date), 'MMM d, yyyy') },
     { key: 'desc', header: 'Description', cell: (r) => <span className="text-sm text-muted-foreground truncate max-w-48 block">{r.description ?? '—'}</span> },
@@ -142,7 +142,7 @@ export default function ReimbursementsPage() {
   ]
 
   const allColumns: Column<ReimbursementOut>[] = [
-    { key: 'type', header: 'Type', cell: (r) => <span className="font-medium capitalize">{r.type}</span> },
+    { key: 'type', header: 'Type', cell: (r) => <span className="font-medium capitalize">{r.remarks}</span> },
     { key: 'amount', header: 'Amount', cell: (r) => <span className="font-semibold">₹{Number(r.amount).toLocaleString()}</span> },
     { key: 'date', header: 'Date', cell: (r) => format(new Date(r.date), 'MMM d, yyyy') },
     { key: 'status', header: 'Status', cell: (r) => <StatusBadge status={r.status} /> },

@@ -48,7 +48,7 @@ export type EmployeeUpdate = Partial<Omit<EmployeeCreate, 'email'>> & { email?: 
 export interface EmployeeStatusUpdate { is_active: boolean }
 
 export interface IdCardCreate {
-  employee_id: string
+  user_id: string
   name: string
   designation: string
   department: string
@@ -64,7 +64,7 @@ export interface AttendanceCheckOut { notes?: string }
 
 export interface AttendanceOut {
   id: string
-  employee_id: string
+  user_id: string
   date: string
   check_in?: string
   check_out?: string
@@ -75,7 +75,7 @@ export interface AttendanceOut {
 }
 
 export interface AttendanceManualEntry {
-  employee_id: string
+  user_id: string
   date: string
   check_in?: string
   check_out?: string
@@ -91,7 +91,7 @@ export interface AttendanceUpdate {
 }
 
 export interface AttendanceAnalytics {
-  employee_id: string
+  user_id: string
   employee_name: string
   total_days: number
   present_days: number
@@ -111,7 +111,7 @@ export interface LeaveCreate {
 
 export interface LeaveOut {
   id: string
-  employee_id: string
+  user_id: string
   start_date: string
   end_date: string
   type: string
@@ -131,7 +131,7 @@ export interface LeaveListResponse {
 }
 
 export interface LeaveAnalyticsItem {
-  employee_id: string
+  user_id: string
   employee_name: string
   approved_leaves: number
   cancelled_leaves: number
@@ -145,7 +145,7 @@ export interface LeaveAnalyticsResponse { analytics: LeaveAnalyticsItem[] }
 // ── Reimbursement ─────────────────────────────────────────────────────────────
 export interface ReimbursementOut {
   id: string
-  employee_id: string
+  user_id: string
   amount: string
   description?: string
   date: string
@@ -182,7 +182,7 @@ export interface ReimbursementAnalytics {
 // ── Document ──────────────────────────────────────────────────────────────────
 export interface DocumentOut {
   id: string
-  employee_id: string
+  user_id: string
   document_type: string
   description: string
   file_path: string
@@ -201,7 +201,7 @@ export interface DocumentVerify {
 
 // ── Salary ────────────────────────────────────────────────────────────────────
 export interface SalarySlipCreate {
-  employee_id: string
+  user_id: string
   month: string
   year: number
   basic: number
@@ -214,7 +214,7 @@ export interface SalarySlipCreate {
 
 export interface SalarySlipOut {
   id: string
-  employee_id: string
+  user_id: string
   month: string
   year: number
   basic: number
@@ -225,10 +225,10 @@ export interface SalarySlipOut {
   date_generated: string
 }
 
-export type SalarySlipUpdate = Partial<Omit<SalarySlipCreate, 'employee_id'>>
+export type SalarySlipUpdate = Partial<Omit<SalarySlipCreate, 'user_id'>>
 
 export interface SalaryHistoryCreate {
-  employee_id: string
+  user_id: string
   amount: number
   date: string
   remarks?: string
@@ -236,16 +236,16 @@ export interface SalaryHistoryCreate {
 
 export interface SalaryHistoryOut {
   id: string
-  employee_id: string
+  user_id: string
   amount: number
   date: string
   remarks?: string
 }
 
-export type SalaryHistoryUpdate = Partial<Omit<SalaryHistoryCreate, 'employee_id'>>
+export type SalaryHistoryUpdate = Partial<Omit<SalaryHistoryCreate, 'user_id'>>
 
 export interface SalaryAnalyticsItem {
-  employee_id: string
+  user_id: string
   total_slips: number
   avg_net_pay: number
   latest_net_pay?: number
@@ -291,7 +291,7 @@ export type DesignationUpdate = Partial<DesignationCreate>
 // ── Notification ──────────────────────────────────────────────────────────────
 export interface NotificationOut {
   id: string
-  employee_id: string
+  user_id: string
   title: string
   message: string
   is_read: boolean
@@ -301,7 +301,7 @@ export interface NotificationOut {
 }
 
 export interface NotificationSend {
-  employee_id: string
+  user_id: string
   title: string
   message: string
   type?: string
@@ -309,7 +309,7 @@ export interface NotificationSend {
 }
 
 export interface NotificationBroadcast {
-  employee_ids: string[]
+  user_ids: string[]
   title: string
   message: string
   type?: string
