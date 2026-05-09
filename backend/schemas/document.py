@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -7,20 +6,19 @@ from pydantic import BaseModel
 
 class DocumentUpload(BaseModel):
     document_type: str
-    description: Optional[str] = None
-
+    description: str | None = None
 
 
 class DocumentOut(BaseModel):
     id: str
     employee_id: str
     document_type: str
-    description: Optional[str]
+    description: str | None
     file_path: str
     status: str
-    verified_by_id: Optional[str]
-    verified_at: Optional[datetime]
-    comment: Optional[str]
+    verified_by_id: str | None
+    verified_at: datetime | None
+    comment: str | None
 
     class Config:
         from_attributes = True
@@ -28,6 +26,6 @@ class DocumentOut(BaseModel):
 
 class DocumentVerify(BaseModel):
     status: str
-    comment: Optional[str] = None
-    verified_by_id: Optional[UUID] = None
-    verified_at: Optional[datetime] = None
+    comment: str | None = None
+    verified_by_id: UUID | None = None
+    verified_at: datetime | None = None

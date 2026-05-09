@@ -20,5 +20,19 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pre-commit>=4.6.0",
     "pytest>=9.0.1",
+    "ruff>=0.15.12",
 ]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+exclude = ["alembic/"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501", "B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["router", "models", "schemas", "services", "db", "utils"]

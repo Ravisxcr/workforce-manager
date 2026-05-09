@@ -1,5 +1,4 @@
 from datetime import date
-from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -7,36 +6,36 @@ from pydantic import BaseModel
 
 class ReimbursementCreate(BaseModel):
     amount: str
-    description: Optional[str] = None
+    description: str | None = None
     date: date
     type: str
 
 
 class ReimbursementUpdate(BaseModel):
-    amount: Optional[str] = None
-    description: Optional[str] = None
-    date: Optional[date] = None
-    type: Optional[str] = None
+    amount: str | None = None
+    description: str | None = None
+    date: date | None = None
+    type: str | None = None
 
 
 class ReimbursementUpdateStatus(BaseModel):
     status: str
-    remarks: Optional[str] = None
-    date_approved: Optional[date] = None
+    remarks: str | None = None
+    date_approved: date | None = None
 
 
 class ReimbursementOut(BaseModel):
     id: UUID
     employee_id: UUID
     amount: str
-    description: Optional[str] = None
+    description: str | None = None
     date: date
     type: str
     status: str
-    approved_by_id: Optional[UUID] = None
-    date_approved: Optional[date] = None
-    receipt_url: Optional[str] = None
-    remarks: Optional[str] = None
+    approved_by_id: UUID | None = None
+    date_approved: date | None = None
+    receipt_url: str | None = None
+    remarks: str | None = None
 
     class Config:
         from_attributes = True
@@ -48,4 +47,4 @@ class ReimbursementAnalytics(BaseModel):
     total_pending: int
     total_rejected: int
     total_amount: str
-    claims: Optional[List[ReimbursementOut]] = None
+    claims: list[ReimbursementOut] | None = None

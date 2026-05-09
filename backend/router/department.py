@@ -1,4 +1,3 @@
-from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -6,16 +5,22 @@ from sqlalchemy.orm import Session
 
 from db.session import get_db
 from models.department import Department, Designation
-from schemas.department import (DepartmentCreate, DepartmentOut,
-                                DepartmentUpdate, DesignationCreate,
-                                DesignationOut, DesignationUpdate)
-from services.auth import admin_required, get_current_active_user
 from models.user import User
+from schemas.department import (
+    DepartmentCreate,
+    DepartmentOut,
+    DepartmentUpdate,
+    DesignationCreate,
+    DesignationOut,
+    DesignationUpdate,
+)
+from services.auth import admin_required, get_current_active_user
 
 router = APIRouter()
 
 
 # ── Department CRUD ───────────────────────────────────────────────────────────
+
 
 @router.post("/", response_model=DepartmentOut)
 def create_department(
@@ -32,7 +37,7 @@ def create_department(
     return dept
 
 
-@router.get("/", response_model=List[DepartmentOut])
+@router.get("/", response_model=list[DepartmentOut])
 def list_departments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
@@ -73,6 +78,7 @@ def delete_department(
 
 # ── Designation CRUD ──────────────────────────────────────────────────────────
 
+
 @router.post("/designation", response_model=DesignationOut)
 def create_designation(
     body: DesignationCreate,
@@ -86,7 +92,7 @@ def create_designation(
     return desig
 
 
-@router.get("/designation", response_model=List[DesignationOut])
+@router.get("/designation", response_model=list[DesignationOut])
 def list_designations(
     department_id: UUID = None,
     db: Session = Depends(get_db),

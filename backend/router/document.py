@@ -64,7 +64,7 @@ def upload_document(
             raise HTTPException(
                 status_code=400,
                 detail="Document of this type already uploaded. Delete existing one first.",
-            )
+            ) from e
         raise
     return doc
 
@@ -132,9 +132,13 @@ def get_document_file(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     if doc.employee_id != current_user.id and not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Not authorized to access this file")
+        raise HTTPException(
+            status_code=403, detail="Not authorized to access this file"
+        )
     if not os.path.exists(doc.file_path):
         raise HTTPException(status_code=404, detail="File not found on disk")
     ext = os.path.splitext(doc.file_path)[1].lower()
     media_type = "application/pdf" if ext == ".pdf" else "image/png"
-    return FileResponse(doc.file_path, media_type=media_type, filename=os.path.basename(doc.file_path))
+    return FileResponse(
+        doc.file_path, media_type=media_type, filename=os.path.basename(doc.file_path)
+    )

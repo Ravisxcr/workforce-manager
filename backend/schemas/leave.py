@@ -1,5 +1,4 @@
 from datetime import date
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -13,11 +12,10 @@ class LeaveCreate(BaseModel):
 
 
 class LeaveUpdate(BaseModel):
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    type: Optional[str] = None
-    reason: Optional[str] = None
-
+    start_date: date | None = None
+    end_date: date | None = None
+    type: str | None = None
+    reason: str | None = None
 
 
 class LeaveOut(LeaveCreate):
@@ -31,6 +29,7 @@ class LeaveOut(LeaveCreate):
     approved_by: str | None = None
     cancellation_requested: bool = False
     cancellation_approved: bool = False
+
 
 class LeaveListResponse(BaseModel):
     data: list[LeaveOut]

@@ -1,43 +1,42 @@
 from datetime import date, datetime
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel
 
 
 class AttendanceCheckIn(BaseModel):
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class AttendanceCheckOut(BaseModel):
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class AttendanceManualEntry(BaseModel):
     employee_id: UUID
     date: date
-    check_in: Optional[datetime] = None
-    check_out: Optional[datetime] = None
+    check_in: datetime | None = None
+    check_out: datetime | None = None
     status: str = "present"
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class AttendanceUpdate(BaseModel):
-    check_in: Optional[datetime] = None
-    check_out: Optional[datetime] = None
-    status: Optional[str] = None
-    notes: Optional[str] = None
+    check_in: datetime | None = None
+    check_out: datetime | None = None
+    status: str | None = None
+    notes: str | None = None
 
 
 class AttendanceOut(BaseModel):
     id: UUID
     employee_id: UUID
     date: date
-    check_in: Optional[datetime] = None
-    check_out: Optional[datetime] = None
+    check_in: datetime | None = None
+    check_out: datetime | None = None
     status: str
-    work_hours: Optional[float] = None
-    notes: Optional[str] = None
+    work_hours: float | None = None
+    notes: str | None = None
     is_manual: bool
 
     class Config:
@@ -52,4 +51,4 @@ class AttendanceAnalytics(BaseModel):
     absent_days: int
     late_days: int
     half_days: int
-    avg_work_hours: Optional[float] = None
+    avg_work_hours: float | None = None

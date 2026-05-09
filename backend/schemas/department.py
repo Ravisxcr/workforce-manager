@@ -1,4 +1,3 @@
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -6,21 +5,21 @@ from pydantic import BaseModel
 
 class DepartmentCreate(BaseModel):
     name: str
-    description: Optional[str] = None
-    head_id: Optional[UUID] = None
+    description: str | None = None
+    head_id: UUID | None = None
 
 
 class DepartmentUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    head_id: Optional[UUID] = None
+    name: str | None = None
+    description: str | None = None
+    head_id: UUID | None = None
 
 
 class DepartmentOut(BaseModel):
     id: UUID
     name: str
-    description: Optional[str] = None
-    head_id: Optional[UUID] = None
+    description: str | None = None
+    head_id: UUID | None = None
 
     class Config:
         from_attributes = True
@@ -28,21 +27,21 @@ class DepartmentOut(BaseModel):
 
 class DesignationCreate(BaseModel):
     name: str
-    department_id: Optional[UUID] = None
-    level: Optional[int] = None
+    department_id: UUID | None = None
+    level: int | None = None
 
 
 class DesignationUpdate(BaseModel):
-    name: Optional[str] = None
-    department_id: Optional[UUID] = None
-    level: Optional[int] = None
+    name: str | None = None
+    department_id: UUID | None = None
+    level: int | None = None
 
 
 class DesignationOut(BaseModel):
     id: UUID
     name: str
-    department_id: Optional[UUID] = None
-    level: Optional[int] = None
+    department_id: UUID | None = None
+    level: int | None = None
 
     class Config:
         from_attributes = True

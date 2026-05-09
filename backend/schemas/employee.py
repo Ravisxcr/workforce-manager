@@ -1,5 +1,4 @@
 from datetime import date
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr
@@ -8,44 +7,44 @@ from pydantic import BaseModel, EmailStr
 class EmployeeCreate(BaseModel):
     full_name: str
     email: EmailStr
-    phone: Optional[str] = None
-    address: Optional[str] = None
-    designation: Optional[str] = None
-    department: Optional[str] = None
-    dob: Optional[date] = None
-    gender: Optional[str] = None
-    date_joined: Optional[date] = None
-    salary: Optional[str] = None
-    manager_id: Optional[UUID] = None
+    phone: str | None = None
+    address: str | None = None
+    designation: str | None = None
+    department: str | None = None
+    dob: date | None = None
+    gender: str | None = None
+    date_joined: date | None = None
+    salary: str | None = None
+    manager_id: UUID | None = None
 
 
 class EmployeeUpdate(BaseModel):
-    full_name: Optional[str] = None
-    email: Optional[EmailStr] = None
-    phone: Optional[str] = None
-    address: Optional[str] = None
-    designation: Optional[str] = None
-    department: Optional[str] = None
-    dob: Optional[date] = None
-    gender: Optional[str] = None
-    date_joined: Optional[date] = None
-    salary: Optional[str] = None
-    manager_id: Optional[UUID] = None
+    full_name: str | None = None
+    email: EmailStr | None = None
+    phone: str | None = None
+    address: str | None = None
+    designation: str | None = None
+    department: str | None = None
+    dob: date | None = None
+    gender: str | None = None
+    date_joined: date | None = None
+    salary: str | None = None
+    manager_id: UUID | None = None
 
 
 class EmployeeOut(BaseModel):
     id: UUID
     full_name: str
     email: EmailStr
-    phone: Optional[str] = None
-    address: Optional[str] = None
-    designation: Optional[str] = None
-    department: Optional[str] = None
-    dob: Optional[date] = None
-    gender: Optional[str] = None
-    date_joined: Optional[date] = None
-    salary: Optional[str] = None
-    manager_id: Optional[UUID] = None
+    phone: str | None = None
+    address: str | None = None
+    designation: str | None = None
+    department: str | None = None
+    dob: date | None = None
+    gender: str | None = None
+    date_joined: date | None = None
+    salary: str | None = None
+    manager_id: UUID | None = None
     created_by_admin_id: UUID
     is_active: bool = True
 

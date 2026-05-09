@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -10,15 +9,15 @@ class NotificationSend(BaseModel):
     title: str
     message: str
     type: str = "info"
-    link: Optional[str] = None
+    link: str | None = None
 
 
 class NotificationBroadcast(BaseModel):
-    employee_ids: List[UUID]
+    employee_ids: list[UUID]
     title: str
     message: str
     type: str = "info"
-    link: Optional[str] = None
+    link: str | None = None
 
 
 class NotificationOut(BaseModel):
@@ -28,7 +27,7 @@ class NotificationOut(BaseModel):
     message: str
     is_read: bool
     type: str
-    link: Optional[str] = None
+    link: str | None = None
     created_at: datetime
 
     class Config:

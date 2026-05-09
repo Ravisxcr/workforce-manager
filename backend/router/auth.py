@@ -1,25 +1,35 @@
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from jose import JWTError, jwt
-from schemas.auth import (ChangePassword, ForgotPassword, ResetPassword,
-                          UserLogin, UserSignUp)
 from sqlalchemy.orm import Session
 
 from db.session import get_db
 from models.user import User
-from services.auth import (authenticate_user, create_access_token,
-                           get_current_active_user, hash_password,
-                           oauth2_scheme, validate_access_token,
-                           verify_password)
+from schemas.auth import (
+    ChangePassword,
+    ForgotPassword,
+    ResetPassword,
+    UserLogin,
+    UserSignUp,
+)
+from services.auth import (
+    authenticate_user,
+    create_access_token,
+    get_current_active_user,
+    hash_password,
+    oauth2_scheme,
+    validate_access_token,
+    verify_password,
+)
 from utils.config import settings
 
 router = APIRouter()
 
 
-@router.post("/login")
+@router.post("/login", response_model=dict, status_code=status.HTTP_200_OK)
 def login(user_login: UserLogin, db: Session = Depends(get_db)):
     user = authenticate_user(db, user_login.email, user_login.password)
     if not user:
@@ -60,7 +70,9 @@ def delete_user(
     token: Annotated[str, Depends(oauth2_scheme)] = None,
 ):
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
         token_email: str = payload.get("sub")
         if token_email is None:
             raise HTTPException(status_code=401, detail="Invalid token")
@@ -68,7 +80,7 @@ def delete_user(
         if not user or not user.is_admin:
             raise HTTPException(status_code=403, detail="Admin privileges required")
     except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(status_code=401, detail="Invalid token") from None
     if not getattr(settings, "ENABLE_DELETE_USER", False):
         raise HTTPException(status_code=403, detail="Delete user endpoint is disabled")
     user_to_delete = db.query(User).filter(User.email == email).first()
@@ -91,9 +103,13 @@ def refresh_token(
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         new_token = create_access_token({"sub": user.email, "is_admin": user.is_admin})
-        return {"access_token": new_token, "token_type": "bearer", "is_admin": user.is_admin}
+        return {
+            "access_token": new_token,
+            "token_type": "bearer",
+            "is_admin": user.is_admin,
+        }
     except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(status_code=401, detail="Invalid token") from None
 
 
 @router.get("/user-info")
@@ -128,7 +144,7 @@ def forgot_password(body: ForgotPassword, db: Session = Depends(get_db)):
         return {"detail": "If that email is registered, a reset token has been sent"}
     token = secrets.token_urlsafe(32)
     user.password_reset_token = token
-    user.password_reset_expires = datetime.now(timezone.utc) + timedelta(hours=1)
+    user.password_reset_expires = datetime.now(UTC) + timedelta(hours=1)
     db.commit()
     # In production: send token via email. Here we return it directly for dev.
     return {
@@ -139,14 +155,12 @@ def forgot_password(body: ForgotPassword, db: Session = Depends(get_db)):
 
 @router.post("/reset-password")
 def reset_password(body: ResetPassword, db: Session = Depends(get_db)):
-    user = (
-        db.query(User)
-        .filter(User.password_reset_token == body.token)
-        .first()
-    )
+    user = db.query(User).filter(User.password_reset_token == body.token).first()
     if not user:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
-    if user.password_reset_expires and datetime.now(timezone.utc) > user.password_reset_expires.replace(tzinfo=timezone.utc):
+    if user.password_reset_expires and datetime.now(
+        UTC
+    ) > user.password_reset_expires.replace(tzinfo=UTC):
         raise HTTPException(status_code=400, detail="Reset token has expired")
     user.hashed_password = hash_password(body.new_password)
     user.password_reset_token = None

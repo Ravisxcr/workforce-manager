@@ -1,23 +1,24 @@
-import sys
 import os
+import sys
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
+
 from alembic import context
 
 # Make the backend root importable
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from utils.config import settings
-from db.base import Base
+import models.attendance  # noqa: F401
+import models.claims  # noqa: F401
+import models.department  # noqa: F401
+import models.notification  # noqa: F401
+import models.salary  # noqa: F401
 
 # Import all models so their tables are registered with Base.metadata
-import models.user          # noqa: F401
-import models.claims        # noqa: F401
-import models.salary        # noqa: F401
-import models.attendance    # noqa: F401
-import models.department    # noqa: F401
-import models.notification  # noqa: F401
+import models.user  # noqa: F401
+from db.base import Base
+from utils.config import settings
 
 config = context.config
 

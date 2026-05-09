@@ -1,4 +1,3 @@
-from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -7,14 +6,17 @@ from sqlalchemy.orm import Session
 from db.session import get_db
 from models.notification import Notification
 from models.user import User
-from schemas.notification import (NotificationBroadcast, NotificationOut,
-                                  NotificationSend)
+from schemas.notification import (
+    NotificationBroadcast,
+    NotificationOut,
+    NotificationSend,
+)
 from services.auth import admin_required, get_current_active_user
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[NotificationOut])
+@router.get("/", response_model=list[NotificationOut])
 def get_my_notifications(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
@@ -34,7 +36,9 @@ def get_unread_count(
 ):
     count = (
         db.query(Notification)
-        .filter(Notification.employee_id == current_user.id, Notification.is_read == False)
+        .filter(
+            Notification.employee_id == current_user.id, Notification.is_read.is_(False)
+        )
         .count()
     )
     return {"unread": count}
@@ -46,10 +50,14 @@ def mark_as_read(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    notif = db.query(Notification).filter(
-        Notification.id == notification_id,
-        Notification.employee_id == current_user.id,
-    ).first()
+    notif = (
+        db.query(Notification)
+        .filter(
+            Notification.id == notification_id,
+            Notification.employee_id == current_user.id,
+        )
+        .first()
+    )
     if not notif:
         raise HTTPException(status_code=404, detail="Notification not found")
     notif.is_read = True
@@ -65,7 +73,7 @@ def mark_all_read(
 ):
     db.query(Notification).filter(
         Notification.employee_id == current_user.id,
-        Notification.is_read == False,
+        Notification.is_read.is_(False),
     ).update({"is_read": True})
     db.commit()
     return None
@@ -90,10 +98,14 @@ def delete_notification(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    notif = db.query(Notification).filter(
-        Notification.id == notification_id,
-        Notification.employee_id == current_user.id,
-    ).first()
+    notif = (
+        db.query(Notification)
+        .filter(
+            Notification.id == notification_id,
+            Notification.employee_id == current_user.id,
+        )
+        .first()
+    )
     if not notif:
         raise HTTPException(status_code=404, detail="Notification not found")
     db.delete(notif)
@@ -101,7 +113,7 @@ def delete_notification(
     return None
 
 
-@router.post("/broadcast", response_model=List[NotificationOut])
+@router.post("/broadcast", response_model=list[NotificationOut])
 def broadcast_notification(
     body: NotificationBroadcast,
     db: Session = Depends(get_db),

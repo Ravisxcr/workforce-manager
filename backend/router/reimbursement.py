@@ -1,5 +1,4 @@
 import os
-from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -8,9 +7,13 @@ from sqlalchemy.orm import Session
 from db.session import get_db
 from models.claims import Reimbursement
 from models.user import User
-from schemas.reimbursement import (ReimbursementAnalytics, ReimbursementCreate,
-                                   ReimbursementOut, ReimbursementUpdate,
-                                   ReimbursementUpdateStatus)
+from schemas.reimbursement import (
+    ReimbursementAnalytics,
+    ReimbursementCreate,
+    ReimbursementOut,
+    ReimbursementUpdate,
+    ReimbursementUpdateStatus,
+)
 from services.auth import admin_required, get_current_active_user
 
 router = APIRouter()
@@ -37,24 +40,30 @@ def create_reimbursement(
     current_user: User = Depends(get_current_active_user),
 ):
     receipt_url = _save_receipt(receipt, current_user.id) if receipt else None
-    db_reim = Reimbursement(**reimbursement.dict(), employee_id=current_user.id, receipt_url=receipt_url)
+    db_reim = Reimbursement(
+        **reimbursement.dict(), employee_id=current_user.id, receipt_url=receipt_url
+    )
     db.add(db_reim)
     db.commit()
     db.refresh(db_reim)
     return db_reim
 
 
-@router.get("/", response_model=List[ReimbursementOut])
+@router.get("/", response_model=list[ReimbursementOut])
 def get_my_reimbursements(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    return db.query(Reimbursement).filter(Reimbursement.employee_id == current_user.id).all()
+    return (
+        db.query(Reimbursement)
+        .filter(Reimbursement.employee_id == current_user.id)
+        .all()
+    )
 
 
-@router.get("/all", response_model=List[ReimbursementOut])
+@router.get("/all", response_model=list[ReimbursementOut])
 def list_all_reimbursements(
-    status: Optional[str] = None,
+    status: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(admin_required),
 ):
@@ -101,14 +110,20 @@ def update_reimbursement(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    reim = db.query(Reimbursement).filter(
-        Reimbursement.id == reimbursement_id,
-        Reimbursement.employee_id == current_user.id,
-    ).first()
+    reim = (
+        db.query(Reimbursement)
+        .filter(
+            Reimbursement.id == reimbursement_id,
+            Reimbursement.employee_id == current_user.id,
+        )
+        .first()
+    )
     if not reim:
         raise HTTPException(status_code=404, detail="Reimbursement not found")
     if reim.status != "pending":
-        raise HTTPException(status_code=400, detail="Only pending claims can be updated")
+        raise HTTPException(
+            status_code=400, detail="Only pending claims can be updated"
+        )
     for field, value in body.dict(exclude_unset=True).items():
         setattr(reim, field, value)
     db.commit()
@@ -122,14 +137,20 @@ def delete_reimbursement(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    reim = db.query(Reimbursement).filter(
-        Reimbursement.id == reimbursement_id,
-        Reimbursement.employee_id == current_user.id,
-    ).first()
+    reim = (
+        db.query(Reimbursement)
+        .filter(
+            Reimbursement.id == reimbursement_id,
+            Reimbursement.employee_id == current_user.id,
+        )
+        .first()
+    )
     if not reim:
         raise HTTPException(status_code=404, detail="Reimbursement not found")
     if reim.status != "pending":
-        raise HTTPException(status_code=400, detail="Only pending claims can be deleted")
+        raise HTTPException(
+            status_code=400, detail="Only pending claims can be deleted"
+        )
     db.delete(reim)
     db.commit()
     return None

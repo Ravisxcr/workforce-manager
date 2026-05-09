@@ -1,5 +1,4 @@
 from datetime import date, datetime
-from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -24,8 +23,8 @@ class SalarySlipOut(BaseModel):
     year: int
     basic: float
     hra: float
-    allowances: Optional[float] = 0.0
-    deductions: Optional[float] = 0.0
+    allowances: float | None = 0.0
+    deductions: float | None = 0.0
     net_pay: float
     date_generated: date
 
@@ -45,37 +44,37 @@ class SalaryHistoryOut(BaseModel):
     employee_id: UUID
     amount: float
     date: datetime
-    remarks: Optional[str] = None
+    remarks: str | None = None
 
     class Config:
         from_attributes = True
 
 
 class SalarySlipUpdate(BaseModel):
-    month: Optional[str] = None
-    year: Optional[int] = None
-    basic: Optional[float] = None
-    hra: Optional[float] = None
-    allowances: Optional[float] = None
-    deductions: Optional[float] = None
-    net_pay: Optional[float] = None
-    date_generated: Optional[date] = None
+    month: str | None = None
+    year: int | None = None
+    basic: float | None = None
+    hra: float | None = None
+    allowances: float | None = None
+    deductions: float | None = None
+    net_pay: float | None = None
+    date_generated: date | None = None
 
 
 class SalaryHistoryUpdate(BaseModel):
-    amount: Optional[float] = None
-    date: Optional[datetime] = None
-    remarks: Optional[str] = None
+    amount: float | None = None
+    date: datetime | None = None
+    remarks: str | None = None
 
 
 class SalaryAnalyticsItem(BaseModel):
     employee_id: str
     total_slips: int
     avg_net_pay: float
-    latest_net_pay: Optional[float] = None
+    latest_net_pay: float | None = None
 
 
 class SalaryAnalytics(BaseModel):
     total_employees: int
     avg_salary: float
-    employees: List[SalaryAnalyticsItem]
+    employees: list[SalaryAnalyticsItem]

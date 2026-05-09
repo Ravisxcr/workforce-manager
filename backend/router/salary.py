@@ -1,4 +1,3 @@
-from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -7,10 +6,16 @@ from sqlalchemy.orm import Session
 from db.session import get_db
 from models.salary import SalaryHistory, SalarySlip
 from models.user import User
-from schemas.salary import (SalaryAnalytics, SalaryAnalyticsItem,
-                            SalaryHistoryCreate, SalaryHistoryOut,
-                            SalaryHistoryUpdate, SalarySlipCreate,
-                            SalarySlipOut, SalarySlipUpdate)
+from schemas.salary import (
+    SalaryAnalytics,
+    SalaryAnalyticsItem,
+    SalaryHistoryCreate,
+    SalaryHistoryOut,
+    SalaryHistoryUpdate,
+    SalarySlipCreate,
+    SalarySlipOut,
+    SalarySlipUpdate,
+)
 from services.auth import admin_required, get_current_active_user
 
 router = APIRouter()
@@ -29,7 +34,7 @@ def create_salary_slip(
     return salary_slip
 
 
-@router.get("/salary-slip/me", response_model=List[SalarySlipOut])
+@router.get("/salary-slip/me", response_model=list[SalarySlipOut])
 def get_my_salary_slips(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
@@ -37,7 +42,7 @@ def get_my_salary_slips(
     return db.query(SalarySlip).filter(SalarySlip.employee_id == current_user.id).all()
 
 
-@router.get("/salary-slip/{employee_id}", response_model=List[SalarySlipOut])
+@router.get("/salary-slip/{employee_id}", response_model=list[SalarySlipOut])
 def get_salary_slips(
     employee_id: UUID,
     db: Session = Depends(get_db),
@@ -61,7 +66,7 @@ def create_salary_history(
     return salary_history
 
 
-@router.get("/salary-history/me", response_model=List[SalaryHistoryOut])
+@router.get("/salary-history/me", response_model=list[SalaryHistoryOut])
 def get_my_salary_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
@@ -74,7 +79,7 @@ def get_my_salary_history(
     )
 
 
-@router.get("/salary-history", response_model=List[SalaryHistoryOut])
+@router.get("/salary-history", response_model=list[SalaryHistoryOut])
 def get_salary_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
@@ -107,12 +112,14 @@ def get_salary_analytics(
         net_pays = [s.net_pay for s in emp_slips]
         all_net.extend(net_pays)
         latest = sorted(emp_slips, key=lambda s: (s.year, s.month), reverse=True)[0]
-        items.append(SalaryAnalyticsItem(
-            employee_id=eid,
-            total_slips=len(emp_slips),
-            avg_net_pay=sum(net_pays) / len(net_pays),
-            latest_net_pay=latest.net_pay,
-        ))
+        items.append(
+            SalaryAnalyticsItem(
+                employee_id=eid,
+                total_slips=len(emp_slips),
+                avg_net_pay=sum(net_pays) / len(net_pays),
+                latest_net_pay=latest.net_pay,
+            )
+        )
 
     return SalaryAnalytics(
         total_employees=len(by_employee),
@@ -121,11 +128,11 @@ def get_salary_analytics(
     )
 
 
-@router.get("/salary-slip", response_model=List[SalarySlipOut])
+@router.get("/salary-slip", response_model=list[SalarySlipOut])
 def list_all_salary_slips(
-    employee_id: Optional[UUID] = Query(None),
-    month: Optional[str] = Query(None),
-    year: Optional[int] = Query(None),
+    employee_id: UUID | None = Query(None),
+    month: str | None = Query(None),
+    year: int | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(admin_required),
 ):
@@ -170,7 +177,7 @@ def delete_salary_slip(
     return None
 
 
-@router.get("/salary-history/{employee_id}", response_model=List[SalaryHistoryOut])
+@router.get("/salary-history/{employee_id}", response_model=list[SalaryHistoryOut])
 def get_employee_salary_history(
     employee_id: UUID,
     db: Session = Depends(get_db),

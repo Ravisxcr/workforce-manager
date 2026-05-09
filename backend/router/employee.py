@@ -1,4 +1,3 @@
-from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -6,8 +5,14 @@ from sqlalchemy.orm import Session
 
 from db.session import get_db
 from models.user import Employee, IdCard, User
-from schemas.employee import (EmployeeCreate, EmployeeOut, EmployeeStatusUpdate,
-                              EmployeeUpdate, IdCardCreate, IdCardOut)
+from schemas.employee import (
+    EmployeeCreate,
+    EmployeeOut,
+    EmployeeStatusUpdate,
+    EmployeeUpdate,
+    IdCardCreate,
+    IdCardOut,
+)
 from services.auth import admin_required, get_current_active_user
 
 router = APIRouter()
@@ -26,12 +31,12 @@ def create_employee(
     return db_employee
 
 
-@router.get("/", response_model=List[EmployeeOut])
+@router.get("/", response_model=list[EmployeeOut])
 def list_employees(
     db: Session = Depends(get_db),
     current_user: User = Depends(admin_required),
-    department: Optional[str] = Query(None),
-    is_active: Optional[bool] = Query(None),
+    department: str | None = Query(None),
+    is_active: bool | None = Query(None),
 ):
     q = db.query(Employee)
     if department:
@@ -41,7 +46,7 @@ def list_employees(
     return q.all()
 
 
-@router.get("/search", response_model=List[EmployeeOut])
+@router.get("/search", response_model=list[EmployeeOut])
 def search_employees(
     q: str = Query(..., min_length=1),
     db: Session = Depends(get_db),
@@ -61,7 +66,7 @@ def search_employees(
     return employees
 
 
-@router.get("/managers", response_model=List[EmployeeOut])
+@router.get("/managers", response_model=list[EmployeeOut])
 def get_managers(
     db: Session = Depends(get_db),
     current_user: User = Depends(admin_required),
@@ -151,7 +156,7 @@ def create_id_card(
     return id_card
 
 
-@router.get("/id-card/verify/{employee_id}", response_model=List[IdCardOut])
+@router.get("/id-card/verify/{employee_id}", response_model=list[IdCardOut])
 def verify_id_card(
     employee_id: str,
     db: Session = Depends(get_db),
@@ -160,7 +165,7 @@ def verify_id_card(
     return cards
 
 
-@router.get("/id-card/me", response_model=List[IdCardOut])
+@router.get("/id-card/me", response_model=list[IdCardOut])
 def get_my_id_cards(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
