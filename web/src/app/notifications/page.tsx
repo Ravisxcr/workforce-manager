@@ -1,0 +1,363 @@
+import { useEffect, useState, useCallback } from 'react'
+import { toast } from 'sonner'
+import { Bell, BellOff, Check, CheckCheck, Trash2, Send, Users } from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
+import { PageHeader } from '@/components/common/page-header'
+import { StatusBadge } from '@/components/common/status-badge'
+import { EmptyState } from '@/components/common/empty-state'
+import { ConfirmDialog } from '@/components/common/confirm-dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Card, CardContent } from '@/components/ui/card'
+import {
+  getMyNotifications, markAsRead, markAllRead, deleteNotification,
+  sendNotification, broadcastNotification,
+} from '@/api/notification'
+import { listEmployees } from '@/api/employee'
+import type { NotificationOut, EmployeeOut } from '@/types'
+import { cn } from '@/lib/utils'
+import { useAuth } from '@/context/auth-context'
+
+const NOTIF_TYPES = ['info', 'warning', 'error', 'success']
+
+export default function NotificationsPage() {
+  const { isAdmin } = useAuth()
+  const [notifications, setNotifications] = useState<NotificationOut[]>([])
+  const [employees, setEmployees] = useState<EmployeeOut[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const [sendDialog, setSendDialog] = useState(false)
+  const [broadcastDialog, setBroadcastDialog] = useState(false)
+  const [sendForm, setSendForm] = useState({ employee_id: '', title: '', message: '', type: 'info', link: '' })
+  const [broadcastForm, setBroadcastForm] = useState({ employee_ids: [] as string[], title: '', message: '', type: 'info', link: '' })
+  const [saving, setSaving] = useState(false)
+
+  const [deleteTarget, setDeleteTarget] = useState<NotificationOut | null>(null)
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [notifs, emps] = await Promise.all([getMyNotifications(), isAdmin ? listEmployees() : Promise.resolve([])])
+      setNotifications(notifs)
+      setEmployees(emps)
+    } catch {
+      toast.error('Failed to load notifications')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { fetchAll() }, [fetchAll])
+
+  const unread = notifications.filter((n) => !n.is_read)
+
+  const handleMarkRead = async (n: NotificationOut) => {
+    if (n.is_read) return
+    try {
+      await markAsRead(n.id)
+      setNotifications((prev) => prev.map((x) => x.id === n.id ? { ...x, is_read: true } : x))
+    } catch {
+      toast.error('Failed to mark as read')
+    }
+  }
+
+  const handleMarkAll = async () => {
+    try {
+      await markAllRead()
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
+      toast.success('All notifications marked as read')
+    } catch {
+      toast.error('Failed to mark all as read')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    try {
+      await deleteNotification(deleteTarget.id)
+      setNotifications((prev) => prev.filter((n) => n.id !== deleteTarget.id))
+      setDeleteTarget(null)
+      toast.success('Notification deleted')
+    } catch {
+      toast.error('Failed to delete')
+    }
+  }
+
+  const handleSend = async () => {
+    setSaving(true)
+    try {
+      await sendNotification({ ...sendForm, link: sendForm.link || undefined })
+      toast.success('Notification sent')
+      setSendDialog(false)
+      setSendForm({ employee_id: '', title: '', message: '', type: 'info', link: '' })
+      fetchAll()
+    } catch (err: unknown) {
+      toast.error((err as { detail?: string })?.detail ?? 'Failed to send')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleBroadcast = async () => {
+    if (broadcastForm.employee_ids.length === 0) { toast.error('Select at least one employee'); return }
+    setSaving(true)
+    try {
+      await broadcastNotification({ ...broadcastForm, link: broadcastForm.link || undefined })
+      toast.success(`Broadcast sent to ${broadcastForm.employee_ids.length} employees`)
+      setBroadcastDialog(false)
+      setBroadcastForm({ employee_ids: [], title: '', message: '', type: 'info', link: '' })
+      fetchAll()
+    } catch (err: unknown) {
+      toast.error((err as { detail?: string })?.detail ?? 'Failed to broadcast')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const toggleEmployee = (id: string) => {
+    setBroadcastForm((prev) => ({
+      ...prev,
+      employee_ids: prev.employee_ids.includes(id)
+        ? prev.employee_ids.filter((e) => e !== id)
+        : [...prev.employee_ids, id],
+    }))
+  }
+
+  return (
+    <div>
+      <PageHeader title="Notifications" description="Manage and send notifications">
+        <div className="flex gap-2">
+          {unread.length > 0 && (
+            <Button variant="outline" size="sm" onClick={handleMarkAll}>
+              <CheckCheck className="mr-2 h-4 w-4" />
+              Mark All Read
+            </Button>
+          )}
+          {isAdmin && (
+            <>
+              <Button variant="outline" size="sm" onClick={() => setBroadcastDialog(true)}>
+                <Users className="mr-2 h-4 w-4" />
+                Broadcast
+              </Button>
+              <Button size="sm" onClick={() => setSendDialog(true)}>
+                <Send className="mr-2 h-4 w-4" />
+                Send
+              </Button>
+            </>
+          )}
+        </div>
+      </PageHeader>
+
+      <Tabs defaultValue="unread">
+        <div className="flex items-center gap-3 mb-4">
+          <TabsList>
+            <TabsTrigger value="unread">
+              Unread
+              {unread.length > 0 && <Badge className="ml-2 h-5 px-1.5 text-xs">{unread.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="all">All</TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="unread">
+          {!loading && unread.length === 0 ? (
+            <EmptyState icon={BellOff} title="No unread notifications" description="You're all caught up!" />
+          ) : (
+            <div className="space-y-2">
+              {loading ? Array.from({ length: 3 }).map((_, i) => <NotifSkeleton key={i} />) :
+                unread.map((n) => (
+                  <NotifCard key={n.id} notification={n} onMarkRead={() => handleMarkRead(n)} onDelete={() => setDeleteTarget(n)} />
+                ))
+              }
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="all">
+          {!loading && notifications.length === 0 ? (
+            <EmptyState icon={Bell} title="No notifications" description="Notifications will appear here." />
+          ) : (
+            <div className="space-y-2">
+              {loading ? Array.from({ length: 5 }).map((_, i) => <NotifSkeleton key={i} />) :
+                notifications.map((n) => (
+                  <NotifCard key={n.id} notification={n} onMarkRead={() => handleMarkRead(n)} onDelete={() => setDeleteTarget(n)} />
+                ))
+              }
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Send Dialog */}
+      <Dialog open={sendDialog} onOpenChange={setSendDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Send Notification</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Employee *</Label>
+              <Select value={sendForm.employee_id} onValueChange={(v) => setSendForm({ ...sendForm, employee_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                <SelectContent>
+                  {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Title *</Label>
+              <Input value={sendForm.title} onChange={(e) => setSendForm({ ...sendForm, title: e.target.value })} placeholder="Notification title" />
+            </div>
+            <div className="space-y-2">
+              <Label>Message *</Label>
+              <Textarea value={sendForm.message} onChange={(e) => setSendForm({ ...sendForm, message: e.target.value })} rows={3} placeholder="Notification message..." />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Type</Label>
+                <Select value={sendForm.type} onValueChange={(v) => setSendForm({ ...sendForm, type: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {NOTIF_TYPES.map((t) => <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Link</Label>
+                <Input value={sendForm.link} onChange={(e) => setSendForm({ ...sendForm, link: e.target.value })} placeholder="/some/path" />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSendDialog(false)}>Cancel</Button>
+            <Button onClick={handleSend} disabled={saving}>{saving ? 'Sending...' : 'Send'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Broadcast Dialog */}
+      <Dialog open={broadcastDialog} onOpenChange={setBroadcastDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Broadcast Notification</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Title *</Label>
+              <Input value={broadcastForm.title} onChange={(e) => setBroadcastForm({ ...broadcastForm, title: e.target.value })} placeholder="Notification title" />
+            </div>
+            <div className="space-y-2">
+              <Label>Message *</Label>
+              <Textarea value={broadcastForm.message} onChange={(e) => setBroadcastForm({ ...broadcastForm, message: e.target.value })} rows={3} />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Recipients ({broadcastForm.employee_ids.length} selected)</Label>
+                <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() =>
+                  setBroadcastForm((p) => ({ ...p, employee_ids: p.employee_ids.length === employees.length ? [] : employees.map((e) => e.id) }))
+                }>
+                  {broadcastForm.employee_ids.length === employees.length ? 'Deselect all' : 'Select all'}
+                </Button>
+              </div>
+              <ScrollArea className="h-40 rounded-md border p-2">
+                <div className="space-y-2">
+                  {employees.map((e) => (
+                    <div key={e.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={e.id}
+                        checked={broadcastForm.employee_ids.includes(e.id)}
+                        onCheckedChange={() => toggleEmployee(e.id)}
+                      />
+                      <label htmlFor={e.id} className="text-sm cursor-pointer">{e.full_name}</label>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select value={broadcastForm.type} onValueChange={(v) => setBroadcastForm({ ...broadcastForm, type: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {NOTIF_TYPES.map((t) => <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBroadcastDialog(false)}>Cancel</Button>
+            <Button onClick={handleBroadcast} disabled={saving}>{saving ? 'Sending...' : 'Broadcast'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        title="Delete Notification"
+        description="Are you sure you want to delete this notification?"
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+        destructive
+      />
+    </div>
+  )
+}
+
+function NotifCard({ notification: n, onMarkRead, onDelete }: {
+  notification: NotificationOut
+  onMarkRead: () => void
+  onDelete: () => void
+}) {
+  return (
+    <Card className={cn('transition-colors', !n.is_read && 'border-primary/30 bg-primary/5 dark:bg-primary/10')}>
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <div className={cn('mt-1 h-2 w-2 rounded-full shrink-0', n.is_read ? 'bg-muted' : 'bg-primary')} />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className={cn('text-sm font-medium', !n.is_read && 'text-foreground')}>{n.title}</p>
+                <p className="text-sm text-muted-foreground mt-0.5">{n.message}</p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <StatusBadge status={n.type} className="text-xs" />
+                {!n.is_read && (
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onMarkRead} title="Mark as read">
+                    <Check className="h-3 w-3" />
+                  </Button>
+                )}
+                <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive" onClick={onDelete}>
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function NotifSkeleton() {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex gap-3">
+          <div className="h-2 w-2 rounded-full bg-muted mt-1 shrink-0" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 bg-muted rounded w-1/3" />
+            <div className="h-3 bg-muted rounded w-2/3" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}

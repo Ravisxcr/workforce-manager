@@ -1,18 +1,9 @@
 import logging
+import traceback
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-
-from db.base import Base
-from db.session import engine
-
-# Import all models so SQLAlchemy registers them before create_all
-import models.user       # noqa: F401
-import models.claims     # noqa: F401
-import models.salary     # noqa: F401
-import models.attendance # noqa: F401
-import models.department # noqa: F401
-import models.notification # noqa: F401
+from fastapi.responses import JSONResponse
 
 from router import (attendance, auth, department, document, employee, leave,
                     notification, reimbursement, salary)
@@ -27,7 +18,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-Base.metadata.create_all(bind=engine)
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logging.error("Unhandled exception: %s\n%s", exc, traceback.format_exc())
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
 
 app.include_router(auth.router,           prefix="/auth",         tags=["Auth"])
 app.include_router(employee.router,       prefix="/employee",     tags=["Employee"])
