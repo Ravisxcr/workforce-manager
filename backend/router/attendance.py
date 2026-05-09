@@ -178,7 +178,7 @@ def get_attendance_analytics(
 
     by_employee: dict = {}
     for r in records:
-        eid = str(r.employee_id)
+        eid = r.employee_id
         by_employee.setdefault(eid, []).append(r)
 
     result = []

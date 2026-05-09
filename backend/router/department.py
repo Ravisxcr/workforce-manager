@@ -37,7 +37,7 @@ def create_department(
     db.refresh(dept)
     return MessageResponse(
         message="Department created successfully",
-        data=dept
+        data=DepartmentOut.model_validate(dept)
     )
 
 
@@ -46,9 +46,10 @@ def list_departments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
+    response = db.query(Department).all()
     return MessageResponse(
         message="Departments retrieved successfully",
-        data=db.query(Department).all()
+        data=[DepartmentOut.model_validate(r) for r in response]
     )
 
 
@@ -68,7 +69,7 @@ def update_department(
     db.refresh(dept)
     return MessageResponse(
         message="Department updated successfully",
-        data=dept
+        data=DepartmentOut.model_validate(dept)
     )
 
 
@@ -101,7 +102,7 @@ def create_designation(
     db.refresh(desig)
     return MessageResponse(
         message="Designation created successfully",
-        data=desig
+        data=DesignationOut.model_validate(desig)
     )
 
 
@@ -117,7 +118,7 @@ def list_designations(
     
     return MessageResponse(
         message="Designations retrieved successfully",
-        data=q.all()
+        data=[DesignationOut.model_validate(r) for r in q.all()]
     )
 
 
@@ -137,7 +138,7 @@ def update_designation(
     db.refresh(desig)
     return MessageResponse(
         message="Designation updated successfully",
-        data=desig
+        data=DesignationOut.model_validate(desig)
     )
 
 

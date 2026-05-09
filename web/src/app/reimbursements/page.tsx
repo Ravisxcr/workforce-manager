@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
 import { Plus, Check, X, Trash2, Receipt, Upload } from 'lucide-react'
 import { format } from 'date-fns'
@@ -109,7 +109,21 @@ export default function ReimbursementsPage() {
     }
   }
 
-  const filteredAll = statusFilter === 'all' ? allReimb : allReimb.filter((r) => r.status === statusFilter)
+  // const filteredAll = statusFilter === 'all' ? allReimb : allReimb.filter((r) => r.status === statusFilter)
+
+  const filteredMy = useMemo(() => {
+    if (statusFilter === 'all') return myReimb;
+    return myReimb.filter((r) => 
+      r.status.toLowerCase() === statusFilter.toLowerCase()
+    );
+  }, [myReimb, statusFilter]);
+
+  const filteredAll = useMemo(() => {
+    if (statusFilter === 'all') return allReimb;
+    return allReimb.filter((r) => 
+      r.status.toLowerCase() === statusFilter.toLowerCase()
+    );
+  }, [allReimb, statusFilter]);
 
   const myColumns: Column<ReimbursementOut>[] = [
     { key: 'type', header: 'Type', cell: (r) => <span className="font-medium capitalize">{r.type}</span> },
@@ -187,7 +201,7 @@ export default function ReimbursementsPage() {
         </div>
 
         <TabsContent value="my">
-          <DataTable columns={myColumns} data={myReimb} isLoading={loading} rowKey={(r) => r.id} />
+          <DataTable columns={myColumns} data={filteredMy} isLoading={loading} rowKey={(r) => r.id} />
         </TabsContent>
 
         {isAdmin && (

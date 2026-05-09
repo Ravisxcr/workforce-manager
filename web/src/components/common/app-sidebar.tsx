@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Clock, CalendarDays, DollarSign,
   Receipt, FileText, Building2, Bell, Settings, LogOut,
@@ -32,17 +32,23 @@ function getInitials(name: string) {
 export function AppSidebar() {
   const { user, isAdmin, logout } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const handleLogout = async () => {
     await logout()
     navigate('/login')
   }
 
+  const checkActive = (url: string) => {
+    if (url === '/') return location.pathname === '/'
+    return location.pathname.startsWith(url)
+  }
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2 overflow-hidden">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold">
+          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold">
             WM
           </div>
           <span className="truncate font-semibold text-sm">Workforce Manager</span>
@@ -56,7 +62,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin).map((item) => (
                 <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild tooltip={item.title}>
+                  <SidebarMenuButton asChild tooltip={item.title} isActive={checkActive(item.url)}>
                     <NavLink
                       to={item.url}
                       end={item.url === '/'}
@@ -79,7 +85,7 @@ export function AppSidebar() {
         <Separator className="mb-2" />
         {user && (
           <div className="flex items-center gap-2 px-2 py-1.5 overflow-hidden">
-            <Avatar className="h-7 w-7 shrink-0">
+            <Avatar className="h-5 w-5 shrink-0">
               <AvatarFallback className="text-xs">{getInitials(user.full_name)}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col overflow-hidden flex-1 min-w-0">
@@ -90,7 +96,7 @@ export function AppSidebar() {
         )}
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Settings">
+            <SidebarMenuButton asChild tooltip="Settings" isActive={location.pathname === '/settings'}>
               <NavLink to="/settings" className="flex items-center gap-2">
                 <Settings className="h-4 w-4" />
                 <span>Settings</span>

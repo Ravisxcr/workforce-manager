@@ -44,7 +44,7 @@ class AttendanceOut(BaseModel):
 
 
 class AttendanceAnalytics(BaseModel):
-    employee_id: str
+    employee_id: UUID
     employee_name: str
     total_days: int
     present_days: int
