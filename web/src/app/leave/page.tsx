@@ -116,6 +116,24 @@ export default function LeavePage() {
   }, [balanceError, isAdmin, myLeavesError, teamLeavesError])
 
   const handleCreate = () => {
+    if (!form.start_date || !form.end_date || !form.type) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+
+    const start = new Date(form.start_date)
+    const end = new Date(form.end_date)
+    const diffTime = Math.abs(end.getTime() - start.getTime())
+    const requestedDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+    const currentBalance = balance[form.type]?.remaining ?? 0
+
+    if (requestedDays > currentBalance) {
+      toast.error(
+        `Insufficient balance. You requested ${requestedDays} days, but only have ${currentBalance} days remaining for ${form.type} leave.`
+      )
+      return
+    }
+
     createLeaveMutation.mutate(form)
   }
 
