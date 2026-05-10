@@ -54,6 +54,10 @@ export interface EmployeeOut {
 
 export type EmployeeUpdate = Partial<Omit<EmployeeCreate, 'email'>> & { email?: string }
 export interface EmployeeStatusUpdate { is_active: boolean }
+export interface EmployeeManagerPromotionOut {
+  employee: EmployeeOut
+  role: string
+}
 
 export interface IdCardCreate {
   user_id: string

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from db.session import get_db
 from models.user import Employee, IdCard, User
 from schemas import MessageResponse
+from schemas.auth import Role
 from schemas.employee import (
     EmployeeCreate,
     EmployeeOut,
@@ -112,19 +113,45 @@ def get_managers(
     db: Session = Depends(get_db),
     current_user: User = Depends(admin_required),
 ):
-    # Managers are employees who appear as manager_id on at least one other employee
-    manager_ids = (
-        db.query(Employee.manager_id)
-        .filter(Employee.manager_id.isnot(None))
-        .distinct()
+    managers = (
+        db.query(Employee)
+        .join(User, Employee.user_id == User.id)
+        .filter(User.role == Role.MANAGER)
         .all()
     )
-    ids = [r[0] for r in manager_ids]
-    if not ids:
+    if not managers:
         return MessageResponse(message="No managers found", data=[])
     return MessageResponse(
         message="Managers retrieved successfully",
-        data=[EmployeeOut.model_validate(r) for r in db.query(Employee).filter(Employee.user_id.in_(ids)).all()]
+        data=[EmployeeOut.model_validate(r) for r in managers]
+    )
+
+
+@router.patch("/{employee_id}/make-manager", response_model=MessageResponse)
+def make_employee_manager(
+    employee_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(admin_required),
+):
+    db_employee = db.query(Employee).filter(Employee.id == employee_id).first()
+    if not db_employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    user = db.query(User).filter(User.id == db_employee.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.role = Role.MANAGER
+    db.commit()
+    db.refresh(db_employee)
+    db.refresh(user)
+    role = user.role.value if isinstance(user.role, Role) else user.role
+    return MessageResponse(
+        message="Employee promoted to manager successfully",
+        data={
+            "employee": EmployeeOut.model_validate(db_employee),
+            "role": role,
+        },
     )
 
 

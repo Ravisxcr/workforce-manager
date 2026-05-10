@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, UserCheck, Search } from 'lucide-react'
+import { Plus, Pencil, Trash2, UserCheck, Search, UserCog } from 'lucide-react'
 import { PageHeader } from '@/components/common/page-header'
 import { DataTable, type Column } from '@/components/common/data-table'
 import { StatusBadge } from '@/components/common/status-badge'
@@ -21,7 +21,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import {
   listEmployees, createEmployee, updateEmployee, deleteEmployee,
-  updateEmployeeStatus, getManagers,
+  updateEmployeeStatus, getManagers, makeEmployeeManager,
 } from '@/api/employee'
 import { addUser } from '@/api/auth'
 import { listDepartments } from '@/api/department'
@@ -128,6 +128,17 @@ export default function EmployeesPage() {
     },
   })
 
+  const makeManagerMutation = useMutation({
+    mutationFn: makeEmployeeManager,
+    onSuccess: (data) => {
+      toast.success(`${data.employee.full_name} is now a manager`)
+      queryClient.invalidateQueries({ queryKey: ['employees'] })
+    },
+    onError: (err: { detail?: string }) => {
+      toast.error(err.detail ?? 'Failed to promote employee')
+    },
+  })
+
   const loading = employeesLoading || managersLoading || departmentsLoading
   const saving = saveEmployeeMutation.isPending
 
@@ -213,22 +224,36 @@ export default function EmployeesPage() {
     {
       key: 'actions',
       header: '',
-      className: 'w-28',
-      cell: (e) => (
-        <div className="flex items-center gap-1 justify-end">
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(e)}>
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
-          <Switch
-            checked={e.is_active}
-            onCheckedChange={() => toggleStatus(e)}
-            className="scale-75"
-          />
-          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(e)}>
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      ),
+      className: 'w-36',
+      cell: (e) => {
+        const isManager = managers.some((m) => m.id === e.id)
+
+        return (
+          <div className="flex items-center gap-1 justify-end">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7"
+              title={isManager ? 'Already a manager' : 'Make manager'}
+              disabled={isManager || makeManagerMutation.isPending}
+              onClick={() => makeManagerMutation.mutate(e.id)}
+            >
+              <UserCog className="h-3.5 w-3.5" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(e)}>
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Switch
+              checked={e.is_active}
+              onCheckedChange={() => toggleStatus(e)}
+              className="scale-75"
+            />
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(e)}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )
+      },
     },
   ]
 

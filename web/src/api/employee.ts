@@ -1,7 +1,7 @@
 import { get, post, put, patch, del } from './client'
 import type {
   EmployeeCreate, EmployeeOut, EmployeeUpdate, EmployeeStatusUpdate,
-  IdCardCreate, IdCardOut,
+  EmployeeManagerPromotionOut, IdCardCreate, IdCardOut,
 } from '@/types'
 
 export const createEmployee = (data: EmployeeCreate) => post<EmployeeOut>('/employee/', data)
@@ -23,6 +23,9 @@ export const deleteEmployee = (id: string) => del(`/employee/${id}`)
 
 export const updateEmployeeStatus = (id: string, data: EmployeeStatusUpdate) =>
   patch<EmployeeOut>(`/employee/${id}/status`, data)
+
+export const makeEmployeeManager = (id: string) =>
+  patch<EmployeeManagerPromotionOut>(`/employee/${id}/make-manager`)
 
 export const createIdCard = (data: IdCardCreate) => post<IdCardOut>('/employee/id-card', data)
 export const verifyIdCard = (employeeId: string) =>
