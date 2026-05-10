@@ -27,6 +27,8 @@ export interface EmployeeCreate {
   email: string
   phone?: string
   address?: string
+  designation_id?: string
+  department_id?: string
   designation?: string
   department?: string
   dob?: string
@@ -43,6 +45,8 @@ export interface EmployeeOut {
   email: string
   phone?: string
   address?: string
+  designation_id?: string
+  department_id?: string
   designation?: string
   department?: string
   dob?: string

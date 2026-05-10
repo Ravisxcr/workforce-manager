@@ -1,9 +1,11 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import String
 from sqlalchemy.orm import Session
 
 from db.session import get_db
+from models.department import Department, Designation
 from models.user import Employee, IdCard, User
 from schemas import MessageResponse
 from schemas.auth import Role
@@ -20,6 +22,40 @@ from services.auth import admin_required, get_current_active_user
 router = APIRouter()
 
 
+def normalize_employee_relationships(
+    employee_data: dict,
+    db: Session,
+    db_employee: Employee | None = None,
+):
+    department_id = employee_data.get(
+        "department_id",
+        db_employee.department_id if db_employee else None,
+    )
+    designation_id = employee_data.get(
+        "designation_id",
+        db_employee.designation_id if db_employee else None,
+    )
+
+    if department_id and not db.query(Department).filter(Department.id == department_id).first():
+        raise HTTPException(status_code=404, detail="Department not found")
+
+    if not designation_id:
+        return
+
+    designation = db.query(Designation).filter(Designation.id == designation_id).first()
+    if not designation:
+        raise HTTPException(status_code=404, detail="Designation not found")
+
+    if department_id and designation.department_id != department_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Designation does not belong to the selected department",
+        )
+
+    if not department_id:
+        employee_data["department_id"] = designation.department_id
+
+
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=MessageResponse)
 def create_employee(
     employee: EmployeeCreate,
@@ -27,6 +63,7 @@ def create_employee(
     current_user: User = Depends(admin_required),
 ):
     employee_data = employee.dict()
+    normalize_employee_relationships(employee_data, db)
     user_id = employee_data.pop("user_id", None)
     user = db.query(User).filter(User.id == user_id).first() if user_id else None
 
@@ -76,7 +113,9 @@ def list_employees(
 ):
     q = db.query(Employee)
     if department:
-        q = q.filter(Employee.department == department)
+        q = q.join(Department, Employee.department_id == Department.id).filter(
+            (Employee.department_id.cast(String) == department) | (Department.name == department)
+        )
     if is_active is not None:
         q = q.filter(Employee.is_active == is_active)
     return MessageResponse(
@@ -94,11 +133,13 @@ def search_employees(
     term = f"%{q}%"
     employees = (
         db.query(Employee)
+        .outerjoin(Department, Employee.department_id == Department.id)
+        .outerjoin(Designation, Employee.designation_id == Designation.id)
         .filter(
             Employee.full_name.ilike(term)
             | Employee.email.ilike(term)
-            | Employee.department.ilike(term)
-            | Employee.designation.ilike(term)
+            | Department.name.ilike(term)
+            | Designation.name.ilike(term)
         )
         .all()
     )
@@ -187,7 +228,9 @@ def update_employee(
     db_employee = db.query(Employee).filter(Employee.id == employee_id).first()
     if not db_employee:
         raise HTTPException(status_code=404, detail="Employee not found")
-    for field, value in employee.dict(exclude_unset=True).items():
+    employee_data = employee.dict(exclude_unset=True)
+    normalize_employee_relationships(employee_data, db, db_employee)
+    for field, value in employee_data.items():
         setattr(db_employee, field, value)
     db.commit()
     db.refresh(db_employee)

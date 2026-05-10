@@ -33,7 +33,7 @@ function getInitials(name: string) {
 
 const EMPTY_FORM: EmployeeCreate = {
   full_name: '', email: '', phone: '', address: '',
-  designation: '', department: '', dob: '', gender: '',
+  designation_id: '', department_id: '', dob: '', gender: '',
   date_joined: '', salary: '', manager_id: '',
 }
 
@@ -44,6 +44,22 @@ const EMPLOYEE_ROLES: { value: EmployeeRole, label: string }[] = [
 ]
 
 type EmployeeFormState = EmployeeCreate & { password?: string }
+
+const findDepartment = (departments: DepartmentOut[], value?: string) =>
+  departments.find((department) => department.id === value || department.name === value)
+
+const findDesignation = (departments: DepartmentOut[], value?: string) => {
+  if (!value) return undefined
+  return departments
+    .flatMap((department) => department.designations ?? [])
+    .find((designation) => designation.id === value || designation.name === value)
+}
+
+const getDepartmentName = (departments: DepartmentOut[], value?: string) =>
+  findDepartment(departments, value)?.name ?? value
+
+const getDesignationName = (departments: DepartmentOut[], value?: string) =>
+  findDesignation(departments, value)?.name ?? value
 
 export default function EmployeesPage() {
   const queryClient = useQueryClient()
@@ -162,11 +178,13 @@ export default function EmployeesPage() {
       (activeFilter === 'active' && e.is_active) ||
       (activeFilter === 'inactive' && !e.is_active)
     const q = searchQuery.toLowerCase()
+    const departmentName = getDepartmentName(departments, e.department_id ?? e.department)
+    const designationName = getDesignationName(departments, e.designation_id ?? e.designation)
     const matchSearch = !q ||
       e.full_name.toLowerCase().includes(q) ||
       e.email.toLowerCase().includes(q) ||
-      (e.department ?? '').toLowerCase().includes(q) ||
-      (e.designation ?? '').toLowerCase().includes(q)
+      (departmentName ?? '').toLowerCase().includes(q) ||
+      (designationName ?? '').toLowerCase().includes(q)
     return matchStatus && matchSearch
   })
 
@@ -177,11 +195,14 @@ export default function EmployeesPage() {
   }
 
   const openEdit = (emp: EmployeeOut) => {
+    const department = findDepartment(departments, emp.department_id ?? emp.department)
+    const designation = findDesignation(departments, emp.designation_id ?? emp.designation)
+
     setEditTarget(emp)
     setForm({
       full_name: emp.full_name, email: emp.email, phone: emp.phone ?? '',
-      address: emp.address ?? '', designation: emp.designation ?? '',
-      department: emp.department ?? '', dob: emp.dob ?? '',
+      address: emp.address ?? '', designation_id: designation?.id ?? emp.designation_id ?? '',
+      department_id: department?.id ?? emp.department_id ?? '', dob: emp.dob ?? '',
       gender: emp.gender ?? '', date_joined: emp.date_joined ?? '',
       salary: emp.salary ?? '', manager_id: emp.manager_id ?? '',
       password: '',
@@ -221,8 +242,16 @@ export default function EmployeesPage() {
         </div>
       ),
     },
-    { key: 'department', header: 'Department', cell: (e) => <span className="text-sm">{e.department ?? '—'}</span> },
-    { key: 'designation', header: 'Designation', cell: (e) => <span className="text-sm">{e.designation ?? '—'}</span> },
+    {
+      key: 'department',
+      header: 'Department',
+      cell: (e) => <span className="text-sm">{getDepartmentName(departments, e.department_id ?? e.department) ?? '—'}</span>,
+    },
+    {
+      key: 'designation',
+      header: 'Designation',
+      cell: (e) => <span className="text-sm">{getDesignationName(departments, e.designation_id ?? e.designation) ?? '—'}</span>,
+    },
     { key: 'salary', header: 'Salary', cell: (e) => <span className="text-sm">{e.salary ?? '—'}</span> },
     {
       key: 'status',
@@ -358,6 +387,9 @@ interface EmployeeFormProps {
 function EmployeeForm({ form, onChange, managers, departments, isEditing }: EmployeeFormProps) {
   const set = (key: keyof EmployeeFormState, value: string) =>
     onChange({ ...form, [key]: value })
+  const selectedDepartment = findDepartment(departments, form.department_id ?? form.department)
+  const departmentDesignations = selectedDepartment?.designations ?? []
+  const selectedDesignation = findDesignation(departments, form.designation_id ?? form.designation)
 
   return (
     <div className="grid grid-cols-2 gap-4 py-2">
@@ -381,16 +413,40 @@ function EmployeeForm({ form, onChange, managers, departments, isEditing }: Empl
       </div>
       <div className="space-y-2">
         <Label>Department</Label>
-        <Select value={form.department ?? ''} onValueChange={(v) => set('department', v)}>
+        <Select
+          value={selectedDepartment?.id ?? ''}
+          onValueChange={(v) => onChange({ ...form, department_id: v, designation_id: '' })}
+        >
           <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
           <SelectContent>
-            {departments.map((d) => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
+            {departments.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-2">
         <Label>Designation</Label>
-        <Input value={form.designation ?? ''} onChange={(e) => set('designation', e.target.value)} placeholder="Software Engineer" />
+        <Select
+          value={selectedDesignation?.id ?? ''}
+          onValueChange={(v) => set('designation_id', v)}
+          disabled={!selectedDepartment || departmentDesignations.length === 0}
+        >
+          <SelectTrigger>
+            <SelectValue
+              placeholder={
+                selectedDepartment
+                  ? 'Select designation'
+                  : 'Select department first'
+              }
+            />
+          </SelectTrigger>
+          <SelectContent>
+            {departmentDesignations.map((designation) => (
+              <SelectItem key={designation.id} value={designation.id}>
+                {designation.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div className="space-y-2">
         <Label>Gender</Label>

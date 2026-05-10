@@ -12,8 +12,8 @@ class EmployeeCreate(BaseModel):
     email: EmailStr
     phone: str | None = None
     address: str | None = None
-    designation: str | None = None
-    department: str | None = None
+    designation_id: UUID | None = None
+    department_id: UUID | None = None
     dob: date | None = None
     gender: str | None = None
     date_joined: date | None = None
@@ -26,8 +26,8 @@ class EmployeeUpdate(BaseModel):
     email: EmailStr | None = None
     phone: str | None = None
     address: str | None = None
-    designation: str | None = None
-    department: str | None = None
+    designation_id: UUID | None = None
+    department_id: UUID | None = None
     dob: date | None = None
     gender: str | None = None
     date_joined: date | None = None
@@ -42,6 +42,8 @@ class EmployeeOut(BaseModel):
     email: EmailStr
     phone: str | None = None
     address: str | None = None
+    designation_id: UUID | None = None
+    department_id: UUID | None = None
     designation: str | None = None
     department: str | None = None
     dob: date | None = None

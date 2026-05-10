@@ -32,8 +32,10 @@ class Employee(Base, TimestampMixin, IdMixin):
     address = Column(String, nullable=True)
     dob = Column(Date, nullable=True)
     gender = Column(String, nullable=True)
-    department = Column(String, nullable=True)
-    designation = Column(String, nullable=True)
+    department_id = Column(UUID(as_uuid=True), ForeignKey("departments.id", ondelete="SET NULL"), nullable=True)
+    designation_id = Column(UUID(as_uuid=True), ForeignKey("designations.id", ondelete="SET NULL"), nullable=True)
+    department_rel = relationship("Department", foreign_keys=[department_id])
+    designation_rel = relationship("Designation", foreign_keys=[designation_id])
     date_joined = Column(Date, nullable=True)
     salary = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
@@ -55,6 +57,14 @@ class Employee(Base, TimestampMixin, IdMixin):
         if not self.user or not self.user.role:
             return None
         return self.user.role.value if isinstance(self.user.role, Role) else self.user.role
+
+    @property
+    def department(self):
+        return self.department_rel.name if self.department_rel else None
+
+    @property
+    def designation(self):
+        return self.designation_rel.name if self.designation_rel else None
 
 
 class User(Base, TimestampMixin, IdMixin):

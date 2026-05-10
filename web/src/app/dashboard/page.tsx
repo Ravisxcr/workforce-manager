@@ -1,5 +1,4 @@
-import type { ElementType } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import { Users, CalendarDays, TrendingUp, UserCheck, UserX, FileText } from 'lucide-react'
 import { PageHeader } from '@/components/common/page-header'
 import { StatCard } from '@/components/common/stat-card'
@@ -10,40 +9,33 @@ import { listEmployees } from '@/api/employee'
 import { getTodayAttendance } from '@/api/attendance'
 import { getLeaves } from '@/api/leave'
 import { getMyNotifications } from '@/api/notification'
+import type { EmployeeOut, AttendanceOut, LeaveOut, NotificationOut } from '@/types'
 import { useAuth } from '@/context/auth-context'
 import { format } from 'date-fns'
 
 export default function DashboardPage() {
   const { user, isAdmin } = useAuth()
+  const [employees, setEmployees] = useState<EmployeeOut[]>([])
+  const [todayAttendance, setTodayAttendance] = useState<AttendanceOut[]>([])
+  const [leaves, setLeaves] = useState<LeaveOut[]>([])
+  const [notifications, setNotifications] = useState<NotificationOut[]>([])
+  const [loading, setLoading] = useState(true)
 
   const now = new Date()
 
-  const { data: leaves = [], isLoading: leavesLoading } = useQuery({
-    queryKey: ['leaves'],
-    queryFn: () => getLeaves().then((r) => r.data),
-  })
-
-  const { data: notifications = [], isLoading: notificationsLoading } = useQuery({
-    queryKey: ['notifications', 'me'],
-    queryFn: getMyNotifications,
-  })
-
-  const { data: employees = [], isLoading: employeesLoading } = useQuery({
-    queryKey: ['employees'],
-    queryFn: () => listEmployees(),
-    enabled: isAdmin,
-  })
-
-  const { data: todayAttendance = [], isLoading: attendanceLoading } = useQuery({
-    queryKey: ['attendance', 'today'],
-    queryFn: getTodayAttendance,
-    enabled: isAdmin,
-  })
-
-  const loading =
-    leavesLoading ||
-    notificationsLoading ||
-    (isAdmin && (employeesLoading || attendanceLoading))
+  useEffect(() => {
+    const tasks: Promise<unknown>[] = [
+      getLeaves().then((r) => setLeaves(r.data)),
+      getMyNotifications().then(setNotifications),
+    ]
+    if (isAdmin) {
+      tasks.push(
+        listEmployees().then(setEmployees),
+        getTodayAttendance().then(setTodayAttendance),
+      )
+    }
+    Promise.allSettled(tasks).finally(() => setLoading(false))
+  }, [isAdmin])
 
   const activeEmployees = employees.filter((e) => e.is_active).length
   const inactiveEmployees = employees.length - activeEmployees
@@ -250,7 +242,7 @@ export default function DashboardPage() {
 }
 
 function OverviewRow({ icon: Icon, label, value, color = 'text-muted-foreground' }: {
-  icon: ElementType; label: string; value: number; color?: string
+  icon: React.ElementType; label: string; value: number; color?: string
 }) {
   return (
     <div className="flex items-center justify-between text-sm">
