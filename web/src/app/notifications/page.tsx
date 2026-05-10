@@ -236,7 +236,7 @@ export default function NotificationsPage() {
               <Select value={sendForm.user_id} onValueChange={(v) => setSendForm({ ...sendForm, user_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
-                  {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
+                  {employees.map((e) => <SelectItem key={e.id} value={e.user_id}>{e.full_name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -288,7 +288,7 @@ export default function NotificationsPage() {
               <div className="flex items-center justify-between">
                 <Label>Recipients ({broadcastForm.user_ids.length} selected)</Label>
                 <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() =>
-                  setBroadcastForm((p) => ({ ...p, user_ids: p.user_ids.length === employees.length ? [] : employees.map((e) => e.id) }))
+                  setBroadcastForm((p) => ({ ...p, user_ids: p.user_ids.length === employees.length ? [] : employees.map((e) => e.user_id) }))
                 }>
                   {broadcastForm.user_ids.length === employees.length ? 'Deselect all' : 'Select all'}
                 </Button>
@@ -299,8 +299,8 @@ export default function NotificationsPage() {
                     <div key={e.id} className="flex items-center gap-2">
                       <Checkbox
                         id={e.id}
-                        checked={broadcastForm.user_ids.includes(e.id)}
-                        onCheckedChange={() => toggleEmployee(e.id)}
+                        checked={broadcastForm.user_ids.includes(e.user_id)}
+                        onCheckedChange={() => toggleEmployee(e.user_id)}
                       />
                       <label htmlFor={e.id} className="text-sm cursor-pointer">{e.full_name}</label>
                     </div>

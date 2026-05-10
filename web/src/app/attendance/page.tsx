@@ -327,7 +327,7 @@ export default function AttendancePage() {
               <Select value={manualForm.user_id} onValueChange={(v) => setManualForm({ ...manualForm, user_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
-                  {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
+                  {employees.map((e) => <SelectItem key={e.id} value={e.user_id}>{e.full_name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

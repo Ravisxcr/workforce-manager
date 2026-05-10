@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from db.session import get_db
 from models.department import Department, Designation
@@ -18,6 +18,13 @@ from schemas.department import (
 from services.auth import admin_required, get_current_active_user
 
 router = APIRouter()
+
+
+def serialize_department(department: Department) -> DepartmentOut:
+    department_out = DepartmentOut.model_validate(department)
+    if department.head:
+        department_out.head_name = department.head.full_name
+    return department_out
 
 
 # ── Department CRUD ───────────────────────────────────────────────────────────
@@ -37,7 +44,7 @@ def create_department(
     db.refresh(dept)
     return MessageResponse(
         message="Department created successfully",
-        data=DepartmentOut.model_validate(dept)
+        data=serialize_department(dept)
     )
 
 
@@ -46,10 +53,17 @@ def list_departments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    response = db.query(Department).all()
+    response = (
+        db.query(Department)
+        .options(
+            joinedload(Department.head),
+            selectinload(Department.designations),
+        )
+        .all()
+    )
     return MessageResponse(
         message="Departments retrieved successfully",
-        data=[DepartmentOut.model_validate(r) for r in response]
+        data=[serialize_department(r) for r in response]
     )
 
 
@@ -69,7 +83,7 @@ def update_department(
     db.refresh(dept)
     return MessageResponse(
         message="Department updated successfully",
-        data=DepartmentOut.model_validate(dept)
+        data=serialize_department(dept)
     )
 
 

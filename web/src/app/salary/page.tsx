@@ -176,7 +176,7 @@ export default function SalaryPage() {
     slipsError,
   ])
 
-  const empName = (id: string) => employees.find((e) => e.id === id)?.full_name ?? id.slice(0, 8)
+  const empName = (id: string) => employees.find((e) => e.user_id === id)?.full_name ?? id.slice(0, 8)
 
   const saveSlip = () => {
     createSalarySlipMutation.mutate(slipForm)
@@ -299,7 +299,7 @@ export default function SalaryPage() {
               <Select value={slipForm.user_id} onValueChange={(v) => setSlipForm({ ...slipForm, user_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
-                  {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
+                  {employees.map((e) => <SelectItem key={e.id} value={e.user_id}>{e.full_name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -344,7 +344,7 @@ export default function SalaryPage() {
               <Select value={historyForm.user_id} onValueChange={(v) => setHistoryForm({ ...historyForm, user_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
-                  {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
+                  {employees.map((e) => <SelectItem key={e.id} value={e.user_id}>{e.full_name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

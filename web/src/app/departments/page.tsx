@@ -21,16 +21,27 @@ import {
 import { getManagers } from '@/api/employee'
 import type { DepartmentOut, DepartmentCreate, DesignationOut, DesignationCreate } from '@/types'
 
+type DepartmentForm = DepartmentCreate
+
+const formatSalary = (value?: number) =>
+  value == null ? undefined : new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value)
+
 export default function DepartmentsPage() {
   const queryClient = useQueryClient()
 
   const [deptDialog, setDeptDialog] = useState(false)
   const [editDept, setEditDept] = useState<DepartmentOut | null>(null)
-  const [deptForm, setDeptForm] = useState<DepartmentCreate>({ name: '', description: '', head_id: '' })
+  const [deptForm, setDeptForm] = useState<DepartmentForm>({ name: '', code: '', description: '', head_id: '' })
 
   const [desigDialog, setDesigDialog] = useState(false)
   const [editDesig, setEditDesig] = useState<DesignationOut | null>(null)
-  const [desigForm, setDesigForm] = useState<DesignationCreate>({ name: '', department_id: '', level: undefined })
+  const [desigForm, setDesigForm] = useState<DesignationCreate>({
+    name: '',
+    department_id: '',
+    min_salary: undefined,
+    max_salary: undefined,
+    level: undefined,
+  })
 
   const [deleteDeptTarget, setDeleteDeptTarget] = useState<DepartmentOut | null>(null)
   const [deleteDesigTarget, setDeleteDesigTarget] = useState<DesignationOut | null>(null)
@@ -124,19 +135,20 @@ export default function DepartmentsPage() {
 
   const openCreateDept = () => {
     setEditDept(null)
-    setDeptForm({ name: '', description: '', head_id: '' })
+    setDeptForm({ name: '', code: '', description: '', head_id: '' })
     setDeptDialog(true)
   }
 
   const openEditDept = (d: DepartmentOut) => {
     setEditDept(d)
-    setDeptForm({ name: d.name, description: d.description ?? '', head_id: d.head_id ?? '' })
+    setDeptForm({ name: d.name, code: d.code ?? '', description: d.description ?? '', head_id: d.head_id ?? '' })
     setDeptDialog(true)
   }
 
   const saveDept = () => {
-    const payload = {
+    const payload: DepartmentCreate = {
       ...deptForm,
+      code: deptForm.code.trim(),
       head_id: deptForm.head_id || undefined,
       description: deptForm.description || undefined,
     }
@@ -150,13 +162,19 @@ export default function DepartmentsPage() {
 
   const openCreateDesig = () => {
     setEditDesig(null)
-    setDesigForm({ name: '', department_id: '', level: undefined })
+    setDesigForm({ name: '', department_id: '', min_salary: undefined, max_salary: undefined, level: undefined })
     setDesigDialog(true)
   }
 
   const openEditDesig = (d: DesignationOut) => {
     setEditDesig(d)
-    setDesigForm({ name: d.name, department_id: d.department_id ?? '', level: d.level })
+    setDesigForm({
+      name: d.name,
+      department_id: d.department_id ?? '',
+      min_salary: d.min_salary,
+      max_salary: d.max_salary,
+      level: d.level,
+    })
     setDesigDialog(true)
   }
 
@@ -164,6 +182,8 @@ export default function DepartmentsPage() {
     const payload = {
       name: desigForm.name,
       department_id: desigForm.department_id || undefined,
+      min_salary: desigForm.min_salary,
+      max_salary: desigForm.max_salary,
       level: desigForm.level,
     }
     saveDesignationMutation.mutate(payload)
@@ -190,13 +210,17 @@ export default function DepartmentsPage() {
     {
       key: 'head', header: 'Head',
       cell: (d) => {
-        const head = managers.find((m) => m.id === d.head_id)
-        return <span className="text-sm">{head?.full_name ?? '—'}</span>
+        const manager = managers.find((m) => m.id === d.head_id)
+        const headName = d.head_name ?? d.head?.full_name ?? manager?.full_name
+        return <span className="text-sm">{headName ?? '—'}</span>
       },
     },
     {
       key: 'designations', header: 'Designations',
-      cell: (d) => <Badge variant="secondary">{designations.filter((ds) => ds.department_id === d.id).length}</Badge>,
+      cell: (d) => {
+        const count = d.designations?.length ?? designations.filter((ds) => ds.department_id === d.id).length
+        return <Badge variant="secondary">{count}</Badge>
+      },
     },
     {
       key: 'actions', header: '', className: 'w-20',
@@ -231,6 +255,14 @@ export default function DepartmentsPage() {
       },
     },
     { key: 'level', header: 'Level', cell: (d) => d.level ? <Badge variant="outline">L{d.level}</Badge> : '—' },
+    {
+      key: 'salary', header: 'Salary Range',
+      cell: (d) => {
+        const min = formatSalary(d.min_salary)
+        const max = formatSalary(d.max_salary)
+        return <span className="text-sm">{min && max ? `${min} - ${max}` : min ?? max ?? '—'}</span>
+      },
+    },
     {
       key: 'actions', header: '', className: 'w-20',
       cell: (d) => (
@@ -301,6 +333,10 @@ export default function DepartmentsPage() {
               <Input value={deptForm.name} onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })} placeholder="Engineering" />
             </div>
             <div className="space-y-2">
+              <Label>Code *</Label>
+              <Input value={deptForm.code} onChange={(e) => setDeptForm({ ...deptForm, code: e.target.value })} placeholder="ENG" />
+            </div>
+            <div className="space-y-2">
               <Label>Description</Label>
               <Textarea value={deptForm.description ?? ''} onChange={(e) => setDeptForm({ ...deptForm, description: e.target.value })} rows={2} placeholder="Department description..." />
             </div>
@@ -350,6 +386,30 @@ export default function DepartmentsPage() {
                 placeholder="e.g. 1"
                 min={1}
               />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Min Salary</Label>
+                <Input
+                  type="number"
+                  value={desigForm.min_salary ?? ''}
+                  onChange={(e) => setDesigForm({ ...desigForm, min_salary: e.target.value ? Number(e.target.value) : undefined })}
+                  placeholder="e.g. 30000"
+                  min={0}
+                  step="0.01"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Max Salary</Label>
+                <Input
+                  type="number"
+                  value={desigForm.max_salary ?? ''}
+                  onChange={(e) => setDesigForm({ ...desigForm, max_salary: e.target.value ? Number(e.target.value) : undefined })}
+                  placeholder="e.g. 60000"
+                  min={0}
+                  step="0.01"
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>

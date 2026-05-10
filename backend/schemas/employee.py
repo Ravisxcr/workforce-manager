@@ -5,6 +5,7 @@ from pydantic import BaseModel, EmailStr
 
 
 class EmployeeCreate(BaseModel):
+    user_id: UUID | None = None
     full_name: str
     email: EmailStr
     phone: str | None = None
@@ -34,6 +35,7 @@ class EmployeeUpdate(BaseModel):
 
 class EmployeeOut(BaseModel):
     id: UUID
+    user_id: UUID
     full_name: str
     email: EmailStr
     phone: str | None = None

@@ -23,6 +23,7 @@ import {
   listEmployees, createEmployee, updateEmployee, deleteEmployee,
   updateEmployeeStatus, getManagers,
 } from '@/api/employee'
+import { addUser } from '@/api/auth'
 import { listDepartments } from '@/api/department'
 import type { EmployeeOut, EmployeeCreate, DepartmentOut } from '@/types'
 
@@ -36,6 +37,8 @@ const EMPTY_FORM: EmployeeCreate = {
   date_joined: '', salary: '', manager_id: '',
 }
 
+type EmployeeFormState = EmployeeCreate & { password?: string }
+
 export default function EmployeesPage() {
   const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState('')
@@ -43,7 +46,7 @@ export default function EmployeesPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<EmployeeOut | null>(null)
-  const [form, setForm] = useState<EmployeeCreate>(EMPTY_FORM)
+  const [form, setForm] = useState<EmployeeFormState>(EMPTY_FORM)
 
   const [deleteTarget, setDeleteTarget] = useState<EmployeeOut | null>(null)
 
@@ -75,8 +78,22 @@ export default function EmployeesPage() {
   })
 
   const saveEmployeeMutation = useMutation({
-    mutationFn: (payload: EmployeeCreate) =>
-      editTarget ? updateEmployee(editTarget.id, payload) : createEmployee(payload),
+    mutationFn: async (payload: EmployeeFormState) => {
+      const { password, ...employee } = payload
+      if (editTarget) return updateEmployee(editTarget.id, employee)
+
+      if (password) {
+        const user = await addUser({
+          full_name: employee.full_name,
+          email: employee.email,
+          password,
+          role: 'employee',
+        })
+        return createEmployee({ ...employee, user_id: user.id })
+      }
+
+      return createEmployee(employee)
+    },
     onSuccess: () => {
       toast.success(editTarget ? 'Employee updated' : 'Employee created')
       setDialogOpen(false)
@@ -148,6 +165,7 @@ export default function EmployeesPage() {
       department: emp.department ?? '', dob: emp.dob ?? '',
       gender: emp.gender ?? '', date_joined: emp.date_joined ?? '',
       salary: emp.salary ?? '', manager_id: emp.manager_id ?? '',
+      password: '',
     })
     setDialogOpen(true)
   }
@@ -155,7 +173,7 @@ export default function EmployeesPage() {
   const handleSave = () => {
     const payload = Object.fromEntries(
       Object.entries(form).filter(([, v]) => v !== '')
-    ) as EmployeeCreate
+    ) as EmployeeFormState
     saveEmployeeMutation.mutate(payload)
   }
 
@@ -263,7 +281,7 @@ export default function EmployeesPage() {
           <DialogHeader>
             <DialogTitle>{editTarget ? 'Edit Employee' : 'Add Employee'}</DialogTitle>
           </DialogHeader>
-          <EmployeeForm form={form} onChange={setForm} managers={managers} departments={departments} />
+          <EmployeeForm form={form} onChange={setForm} managers={managers} departments={departments} isEditing={!!editTarget} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving}>
@@ -287,14 +305,15 @@ export default function EmployeesPage() {
 }
 
 interface EmployeeFormProps {
-  form: EmployeeCreate
-  onChange: (form: EmployeeCreate) => void
+  form: EmployeeFormState
+  onChange: (form: EmployeeFormState) => void
   managers: EmployeeOut[]
   departments: DepartmentOut[]
+  isEditing: boolean
 }
 
-function EmployeeForm({ form, onChange, managers, departments }: EmployeeFormProps) {
-  const set = (key: keyof EmployeeCreate, value: string) =>
+function EmployeeForm({ form, onChange, managers, departments, isEditing }: EmployeeFormProps) {
+  const set = (key: keyof EmployeeFormState, value: string) =>
     onChange({ ...form, [key]: value })
 
   return (
@@ -307,6 +326,12 @@ function EmployeeForm({ form, onChange, managers, departments }: EmployeeFormPro
         <Label>Email *</Label>
         <Input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="john@example.com" />
       </div>
+      {!isEditing && (
+        <div className="space-y-2">
+          <Label>Login Password</Label>
+          <Input type="password" value={form.password ?? ''} onChange={(e) => set('password', e.target.value)} placeholder="Use existing email if blank" />
+        </div>
+      )}
       <div className="space-y-2">
         <Label>Phone</Label>
         <Input value={form.phone ?? ''} onChange={(e) => set('phone', e.target.value)} placeholder="+1234567890" />
@@ -353,7 +378,7 @@ function EmployeeForm({ form, onChange, managers, departments }: EmployeeFormPro
           <SelectTrigger><SelectValue placeholder="No manager" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="none">None</SelectItem>
-            {managers.map((m) => <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>)}
+            {managers.map((m) => <SelectItem key={m.id} value={m.user_id}>{m.full_name}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>

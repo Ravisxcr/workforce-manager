@@ -1,6 +1,12 @@
 // ── Auth ─────────────────────────────────────────────────────────────────────
 export interface UserLogin { email: string; password: string }
-export interface UserSignUp { full_name: string; email: string; password: string }
+export interface UserSignUp { full_name: string; email: string; password: string; role?: string }
+export interface UserSignUpResponse {
+  id: string
+  email: string
+  full_name: string
+  role: string
+}
 export interface ChangePassword { current_password: string; new_password: string }
 export interface ForgotPassword { email: string }
 export interface ResetPassword { token: string; new_password: string }
@@ -14,6 +20,7 @@ export interface UserInfo {
 
 // ── Employee ──────────────────────────────────────────────────────────────────
 export interface EmployeeCreate {
+  user_id?: string
   full_name: string
   email: string
   phone?: string
@@ -29,6 +36,7 @@ export interface EmployeeCreate {
 
 export interface EmployeeOut {
   id: string
+  user_id: string
   full_name: string
   email: string
   phone?: string
@@ -258,32 +266,46 @@ export interface SalaryAnalytics {
 }
 
 // ── Department ────────────────────────────────────────────────────────────────
-export interface DepartmentCreate {
-  name: string
+
+export interface DepartmentUpdate {
+  name?: string
   description?: string
   head_id?: string
+}
+
+export interface DepartmentCreate extends DepartmentUpdate{
+  code: string
+}
+
+export interface DepartmentHeadOut {
+  id: string
+  full_name?: string
+  email: string
 }
 
 export interface DepartmentOut {
   id: string
   name: string
+  code?: string
   description?: string
   head_id?: string
+  head?: DepartmentHeadOut
+  head_name?: string
+  parent_department_id?: string
+  is_active: boolean
+  designations: DesignationOut[]
 }
-
-export type DepartmentUpdate = Partial<DepartmentCreate>
 
 export interface DesignationCreate {
   name: string
   department_id?: string
+  min_salary?: number
+  max_salary?: number
   level?: number
 }
 
-export interface DesignationOut {
+export interface DesignationOut extends DesignationCreate {
   id: string
-  name: string
-  department_id?: string
-  level?: number
 }
 
 export type DesignationUpdate = Partial<DesignationCreate>

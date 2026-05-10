@@ -25,7 +25,38 @@ def create_employee(
     db: Session = Depends(get_db),
     current_user: User = Depends(admin_required),
 ):
-    db_employee = Employee(**employee.dict(), created_by_admin_id=current_user.id)
+    employee_data = employee.dict()
+    user_id = employee_data.pop("user_id", None)
+    user = db.query(User).filter(User.id == user_id).first() if user_id else None
+
+    if user_id and not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not user:
+        user = db.query(User).filter(User.email == employee.email).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=400,
+            detail="Create a login user first or provide an existing user email",
+        )
+
+    existing_employee = (
+        db.query(Employee)
+        .filter((Employee.user_id == user.id) | (Employee.email == employee.email))
+        .first()
+    )
+    if existing_employee:
+        raise HTTPException(
+            status_code=400,
+            detail="Employee already exists for this user or email",
+        )
+
+    db_employee = Employee(
+        **employee_data,
+        user_id=user.id,
+        created_by_admin_id=current_user.id,
+    )
     db.add(db_employee)
     db.commit()
     db.refresh(db_employee)
@@ -93,7 +124,7 @@ def get_managers(
         return MessageResponse(message="No managers found", data=[])
     return MessageResponse(
         message="Managers retrieved successfully",
-        data=[EmployeeOut.model_validate(r) for r in db.query(Employee).filter(Employee.id.in_(ids)).all()]
+        data=[EmployeeOut.model_validate(r) for r in db.query(Employee).filter(Employee.user_id.in_(ids)).all()]
     )
 
 
