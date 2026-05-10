@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { KeyRound, User } from 'lucide-react'
 import { PageHeader } from '@/components/common/page-header'
@@ -15,9 +16,19 @@ const EMPTY_PW = { current_password: '', new_password: '', confirm_password: '' 
 export default function SettingsPage() {
   const { user } = useAuth()
   const [pwForm, setPwForm] = useState(EMPTY_PW)
-  const [saving, setSaving] = useState(false)
 
-  const handleChangePassword = async (e: React.FormEvent) => {
+  const changePasswordMutation = useMutation({
+    mutationFn: changePassword,
+    onSuccess: () => {
+      toast.success('Password changed successfully')
+      setPwForm(EMPTY_PW)
+    },
+    onError: (err: { detail?: string }) => {
+      toast.error(err.detail ?? 'Failed to change password')
+    },
+  })
+
+  const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault()
     if (pwForm.new_password !== pwForm.confirm_password) {
       toast.error('New passwords do not match')
@@ -27,19 +38,10 @@ export default function SettingsPage() {
       toast.error('New password must be at least 8 characters')
       return
     }
-    setSaving(true)
-    try {
-      await changePassword({
-        current_password: pwForm.current_password,
-        new_password: pwForm.new_password,
-      })
-      toast.success('Password changed successfully')
-      setPwForm(EMPTY_PW)
-    } catch (err: unknown) {
-      toast.error((err as { detail?: string })?.detail ?? 'Failed to change password')
-    } finally {
-      setSaving(false)
-    }
+    changePasswordMutation.mutate({
+      current_password: pwForm.current_password,
+      new_password: pwForm.new_password,
+    })
   }
 
   return (
@@ -109,8 +111,8 @@ export default function SettingsPage() {
               />
             </div>
             <div className="flex justify-end">
-              <Button type="submit" disabled={saving || !pwForm.current_password || !pwForm.new_password}>
-                {saving ? 'Saving...' : 'Update Password'}
+              <Button type="submit" disabled={changePasswordMutation.isPending || !pwForm.current_password || !pwForm.new_password}>
+                {changePasswordMutation.isPending ? 'Saving...' : 'Update Password'}
               </Button>
             </div>
           </form>

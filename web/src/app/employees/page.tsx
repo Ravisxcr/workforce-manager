@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, UserCheck, Search } from 'lucide-react'
 import { PageHeader } from '@/components/common/page-header'
@@ -36,39 +37,88 @@ const EMPTY_FORM: EmployeeCreate = {
 }
 
 export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<EmployeeOut[]>([])
-  const [managers, setManagers] = useState<EmployeeOut[]>([])
-  const [departments, setDepartments] = useState<DepartmentOut[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all')
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<EmployeeOut | null>(null)
   const [form, setForm] = useState<EmployeeCreate>(EMPTY_FORM)
-  const [saving, setSaving] = useState(false)
 
   const [deleteTarget, setDeleteTarget] = useState<EmployeeOut | null>(null)
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [emps, mgrs, depts] = await Promise.all([
-        listEmployees(),
-        getManagers(),
-        listDepartments(),
-      ])
-      setEmployees(emps)
-      setManagers(mgrs)
-      setDepartments(depts)
-    } catch {
-      toast.error('Failed to load employees')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const {
+    data: employees = [],
+    isLoading: employeesLoading,
+    isError: employeesError,
+  } = useQuery({
+    queryKey: ['employees'],
+    queryFn: () => listEmployees(),
+  })
 
-  useEffect(() => { fetchAll() }, [fetchAll])
+  const {
+    data: managers = [],
+    isLoading: managersLoading,
+    isError: managersError,
+  } = useQuery({
+    queryKey: ['employees', 'managers'],
+    queryFn: getManagers,
+  })
+
+  const {
+    data: departments = [],
+    isLoading: departmentsLoading,
+    isError: departmentsError,
+  } = useQuery({
+    queryKey: ['departments'],
+    queryFn: listDepartments,
+  })
+
+  const saveEmployeeMutation = useMutation({
+    mutationFn: (payload: EmployeeCreate) =>
+      editTarget ? updateEmployee(editTarget.id, payload) : createEmployee(payload),
+    onSuccess: () => {
+      toast.success(editTarget ? 'Employee updated' : 'Employee created')
+      setDialogOpen(false)
+      queryClient.invalidateQueries({ queryKey: ['employees'] })
+    },
+    onError: (err: { detail?: string }) => {
+      toast.error(err.detail ?? 'Failed to save employee')
+    },
+  })
+
+  const deleteEmployeeMutation = useMutation({
+    mutationFn: deleteEmployee,
+    onSuccess: () => {
+      toast.success('Employee deleted')
+      setDeleteTarget(null)
+      queryClient.invalidateQueries({ queryKey: ['employees'] })
+    },
+    onError: () => {
+      toast.error('Failed to delete employee')
+    },
+  })
+
+  const updateEmployeeStatusMutation = useMutation({
+    mutationFn: (emp: EmployeeOut) =>
+      updateEmployeeStatus(emp.id, { is_active: !emp.is_active }),
+    onSuccess: (_data, emp) => {
+      toast.success(`Employee ${emp.is_active ? 'deactivated' : 'activated'}`)
+      queryClient.invalidateQueries({ queryKey: ['employees'] })
+    },
+    onError: () => {
+      toast.error('Failed to update status')
+    },
+  })
+
+  const loading = employeesLoading || managersLoading || departmentsLoading
+  const saving = saveEmployeeMutation.isPending
+
+  useEffect(() => {
+    if (employeesError || managersError || departmentsError) {
+      toast.error('Failed to load employees')
+    }
+  }, [departmentsError, employeesError, managersError])
 
   const filtered = employees.filter((e) => {
     const matchStatus =
@@ -102,48 +152,20 @@ export default function EmployeesPage() {
     setDialogOpen(true)
   }
 
-  const handleSave = async () => {
-    setSaving(true)
-    try {
-      const payload = Object.fromEntries(
-        Object.entries(form).filter(([, v]) => v !== '')
-      ) as EmployeeCreate
-      if (editTarget) {
-        await updateEmployee(editTarget.id, payload)
-        toast.success('Employee updated')
-      } else {
-        await createEmployee(payload)
-        toast.success('Employee created')
-      }
-      setDialogOpen(false)
-      fetchAll()
-    } catch (err: unknown) {
-      toast.error((err as { detail?: string })?.detail ?? 'Failed to save employee')
-    } finally {
-      setSaving(false)
-    }
+  const handleSave = () => {
+    const payload = Object.fromEntries(
+      Object.entries(form).filter(([, v]) => v !== '')
+    ) as EmployeeCreate
+    saveEmployeeMutation.mutate(payload)
   }
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!deleteTarget) return
-    try {
-      await deleteEmployee(deleteTarget.id)
-      toast.success('Employee deleted')
-      setDeleteTarget(null)
-      fetchAll()
-    } catch {
-      toast.error('Failed to delete employee')
-    }
+    deleteEmployeeMutation.mutate(deleteTarget.id)
   }
 
-  const toggleStatus = async (emp: EmployeeOut) => {
-    try {
-      await updateEmployeeStatus(emp.id, { is_active: !emp.is_active })
-      toast.success(`Employee ${emp.is_active ? 'deactivated' : 'activated'}`)
-      fetchAll()
-    } catch {
-      toast.error('Failed to update status')
-    }
+  const toggleStatus = (emp: EmployeeOut) => {
+    updateEmployeeStatusMutation.mutate(emp)
   }
 
   const columns: Column<EmployeeOut>[] = [

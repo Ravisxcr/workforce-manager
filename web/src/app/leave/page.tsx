@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Plus, CalendarDays, Check, X, Trash2, RefreshCw } from 'lucide-react'
 import { format } from 'date-fns'
@@ -28,77 +29,104 @@ const EMPTY_FORM: LeaveCreate = { start_date: '', end_date: '', type: '', reason
 
 export default function LeavePage() {
   const { isAdmin } = useAuth()
-  const [myLeaves, setMyLeaves] = useState<LeaveOut[]>([])
-  const [teamLeaves, setTeamLeaves] = useState<LeaveOut[]>([])
-  const [balance, setBalance] = useState<Record<string, { total: number; used: number; remaining: number }>>({})
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [form, setForm] = useState<LeaveCreate>(EMPTY_FORM)
-  const [saving, setSaving] = useState(false)
 
   const [deleteTarget, setDeleteTarget] = useState<LeaveOut | null>(null)
   const [approveTarget, setApproveTarget] = useState<{ leave: LeaveOut; action: 'approve' | 'reject' | 'cancel-approve' } | null>(null)
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [leavesRes, team, bal] = await Promise.all([
-        getLeaves(),
-        isAdmin ? getTeamLeaves() : Promise.resolve([]),
-        getLeaveBalance(),
-      ])
-      setMyLeaves(leavesRes.data)
-      setTeamLeaves(team)
-      setBalance(bal)
-    } catch {
-      toast.error('Failed to load leave data')
-    } finally {
-      setLoading(false)
-    }
-  }, [isAdmin])
+  const {
+    data: myLeaves = [],
+    isLoading: myLeavesLoading,
+    isError: myLeavesError,
+  } = useQuery({
+    queryKey: ['leaves'],
+    queryFn: () => getLeaves().then((r) => r.data),
+  })
 
-  useEffect(() => { fetchAll() }, [fetchAll])
+  const {
+    data: teamLeaves = [],
+    isLoading: teamLeavesLoading,
+    isError: teamLeavesError,
+  } = useQuery({
+    queryKey: ['leaves', 'team'],
+    queryFn: () => getTeamLeaves(),
+    enabled: isAdmin,
+  })
 
-  const handleCreate = async () => {
-    setSaving(true)
-    try {
-      await createLeave(form)
+  const {
+    data: balance = {},
+    isLoading: balanceLoading,
+    isError: balanceError,
+  } = useQuery({
+    queryKey: ['leaves', 'balance'],
+    queryFn: getLeaveBalance,
+  })
+
+  const createLeaveMutation = useMutation({
+    mutationFn: createLeave,
+    onSuccess: () => {
       toast.success('Leave request submitted')
       setDialogOpen(false)
       setForm(EMPTY_FORM)
-      fetchAll()
-    } catch (err: unknown) {
-      toast.error((err as { detail?: string })?.detail ?? 'Failed to submit leave')
-    } finally {
-      setSaving(false)
-    }
-  }
+      queryClient.invalidateQueries({ queryKey: ['leaves'] })
+    },
+    onError: (err: { detail?: string }) => {
+      toast.error(err.detail ?? 'Failed to submit leave')
+    },
+  })
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return
-    try {
-      await deleteLeave(deleteTarget.id)
+  const deleteLeaveMutation = useMutation({
+    mutationFn: deleteLeave,
+    onSuccess: () => {
       toast.success('Leave request deleted')
       setDeleteTarget(null)
-      fetchAll()
-    } catch {
+      queryClient.invalidateQueries({ queryKey: ['leaves'] })
+    },
+    onError: () => {
       toast.error('Failed to delete leave')
-    }
-  }
+    },
+  })
 
-  const handleAction = async () => {
-    if (!approveTarget) return
-    try {
-      if (approveTarget.action === 'approve') await approveLeave(approveTarget.leave.id)
-      else if (approveTarget.action === 'reject') await rejectLeave(approveTarget.leave.id)
-      else await approveLeaveCancellation(approveTarget.leave.id)
+  const approveLeaveMutation = useMutation({
+    mutationFn: ({ leave, action }: { leave: LeaveOut; action: 'approve' | 'reject' | 'cancel-approve' }) => {
+      if (action === 'approve') return approveLeave(leave.id)
+      if (action === 'reject') return rejectLeave(leave.id)
+      return approveLeaveCancellation(leave.id)
+    },
+    onSuccess: () => {
       toast.success('Action completed')
       setApproveTarget(null)
-      fetchAll()
-    } catch {
+      queryClient.invalidateQueries({ queryKey: ['leaves'] })
+    },
+    onError: () => {
       toast.error('Action failed')
+    },
+  })
+
+  const loading = myLeavesLoading || balanceLoading || (isAdmin && teamLeavesLoading)
+  const saving = createLeaveMutation.isPending
+
+  useEffect(() => {
+    if (myLeavesError || balanceError || (isAdmin && teamLeavesError)) {
+      toast.error('Failed to load leave data')
     }
+  }, [balanceError, isAdmin, myLeavesError, teamLeavesError])
+
+  const handleCreate = () => {
+    createLeaveMutation.mutate(form)
+  }
+
+  const handleDelete = () => {
+    if (!deleteTarget) return
+    deleteLeaveMutation.mutate(deleteTarget.id)
+  }
+
+  const handleAction = () => {
+    if (!approveTarget) return
+    approveLeaveMutation.mutate(approveTarget)
   }
 
   const pendingTeam = teamLeaves.filter((l) => l.status === 'pending')

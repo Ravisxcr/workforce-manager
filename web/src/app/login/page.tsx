@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -14,20 +15,20 @@ export default function LoginPage() {
   const [email, setEmail] = useState(import.meta.env.VITE_DEFAULT_EMAIL || "")
   const [password, setPassword] = useState(import.meta.env.VITE_DEFAULT_PASSWORD || "")
   const [showPw, setShowPw] = useState(false)
-  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    try {
-      await login({ email, password })
+  const loginMutation = useMutation({
+    mutationFn: login,
+    onSuccess: () => {
       navigate('/', { replace: true })
-    } catch (err: unknown) {
-      const msg = (err as { detail?: string })?.detail ?? 'Invalid email or password'
-      toast.error(msg)
-    } finally {
-      setLoading(false)
-    }
+    },
+    onError: (err: { detail?: string }) => {
+      toast.error(err.detail ?? 'Invalid email or password')
+    },
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    loginMutation.mutate({ email, password })
   }
 
   return (
@@ -83,8 +84,8 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
+                {loginMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Sign in
               </Button>
             </form>

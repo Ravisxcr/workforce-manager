@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Clock, LogIn, LogOut, Plus, Trash2, BarChart3 } from 'lucide-react'
 import { format } from 'date-fns'
@@ -20,7 +21,7 @@ import {
   getAttendanceAnalytics, manualEntry, deleteAttendance,
 } from '@/api/attendance'
 import { listEmployees } from '@/api/employee'
-import type { AttendanceOut, AttendanceAnalytics, EmployeeOut } from '@/types'
+import type { AttendanceOut, AttendanceAnalytics } from '@/types'
 import { useAuth } from '@/context/auth-context'
 
 const MONTHS = [
@@ -32,110 +33,151 @@ export default function AttendancePage() {
   const now = new Date()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
+  const queryClient = useQueryClient()
 
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [year, setYear] = useState(now.getFullYear())
 
-  const [myAttendance, setMyAttendance] = useState<AttendanceOut[]>([])
-  const [todayAtt, setTodayAtt] = useState<AttendanceOut[]>([])
-  const [analytics, setAnalytics] = useState<AttendanceAnalytics[]>([])
-  const [employees, setEmployees] = useState<EmployeeOut[]>([])
-  const [loading, setLoading] = useState(true)
-
   const [checkinNote, setCheckinNote] = useState('')
   const [checkoutNote, setCheckoutNote] = useState('')
-  const [actionLoading, setActionLoading] = useState(false)
 
   const [manualOpen, setManualOpen] = useState(false)
   const [manualForm, setManualForm] = useState({
     user_id: '', date: '', check_in: '', check_out: '', status: 'present', notes: '',
   })
 
+  const {
+    data: myAttendance = [],
+    isLoading: myAttendanceLoading,
+    isError: myAttendanceError,
+  } = useQuery({
+    queryKey: ['attendance', 'me', month, year],
+    queryFn: () => getMyAttendance({ month, year }),
+  })
+
+  const {
+    data: todayAtt = [],
+    isLoading: todayAttendanceLoading,
+    isError: todayAttendanceError,
+  } = useQuery({
+    queryKey: ['attendance', 'today'],
+    queryFn: getTodayAttendance,
+  })
+
+  const {
+    data: analytics = [],
+    isLoading: analyticsLoading,
+    isError: analyticsError,
+  } = useQuery({
+    queryKey: ['attendance', 'analytics', month, year],
+    queryFn: () => getAttendanceAnalytics({ month, year }),
+    enabled: isAdmin,
+  })
+
+  const {
+    data: employees = [],
+    isLoading: employeesLoading,
+    isError: employeesError,
+  } = useQuery({
+    queryKey: ['employees'],
+    queryFn: () => listEmployees(),
+    enabled: isAdmin,
+  })
+
+  const checkInMutation = useMutation({
+    mutationFn: checkIn,
+    onSuccess: () => {
+      toast.success('Checked in successfully')
+      setCheckinNote('')
+      queryClient.invalidateQueries({ queryKey: ['attendance'] })
+    },
+    onError: (err: { detail?: string }) => {
+      toast.error(err.detail ?? 'Check-in failed')
+    },
+  })
+
+  const checkOutMutation = useMutation({
+    mutationFn: checkOut,
+    onSuccess: () => {
+      toast.success('Checked out successfully')
+      setCheckoutNote('')
+      queryClient.invalidateQueries({ queryKey: ['attendance'] })
+    },
+    onError: (err: { detail?: string }) => {
+      toast.error(err.detail ?? 'Check-out failed')
+    },
+  })
+
+  const manualEntryMutation = useMutation({
+    mutationFn: manualEntry,
+    onSuccess: () => {
+      toast.success('Manual entry added')
+      setManualOpen(false)
+      queryClient.invalidateQueries({ queryKey: ['attendance'] })
+    },
+    onError: (err: { detail?: string }) => {
+      toast.error(err.detail ?? 'Failed to add manual entry')
+    },
+  })
+
+  const deleteAttendanceMutation = useMutation({
+    mutationFn: deleteAttendance,
+    onSuccess: () => {
+      toast.success('Record deleted')
+      queryClient.invalidateQueries({ queryKey: ['attendance'] })
+    },
+    onError: () => {
+      toast.error('Failed to delete')
+    },
+  })
+
+  const loading =
+    myAttendanceLoading ||
+    todayAttendanceLoading ||
+    (isAdmin && (analyticsLoading || employeesLoading))
+  const actionLoading = checkInMutation.isPending || checkOutMutation.isPending
+
+  useEffect(() => {
+    if (
+      myAttendanceError ||
+      todayAttendanceError ||
+      (isAdmin && (analyticsError || employeesError))
+    ) {
+      toast.error('Failed to load attendance data')
+    }
+  }, [
+    analyticsError,
+    employeesError,
+    isAdmin,
+    myAttendanceError,
+    todayAttendanceError,
+  ])
+
   const hasTodayCheckin = todayAtt.some((a) => a.check_in && !a.check_out)
   const hasTodayCheckedOut = todayAtt.some((a) => a.check_out)
   const hasTodayRecord = todayAtt.length > 0
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [myAtt, today] = await Promise.all([
-        getMyAttendance({ month, year }),
-        getTodayAttendance(),
-      ])
-      setMyAttendance(myAtt)
-      setTodayAtt(today)
-
-      if (isAdmin) {
-        const [analyt, emps] = await Promise.all([
-        getAttendanceAnalytics({ month, year }),
-        listEmployees(),
-        ])
-        setAnalytics(analyt)
-        setEmployees(emps)
-      }
-    } catch {
-      toast.error('Failed to load attendance data')
-    } finally {
-      setLoading(false)
-    }
-  }, [month, year, isAdmin])
-
-  useEffect(() => { fetchData() }, [fetchData])
-
-  const handleCheckIn = async () => {
-    setActionLoading(true)
-    try {
-      await checkIn({ notes: checkinNote })
-      toast.success('Checked in successfully')
-      setCheckinNote('')
-      fetchData()
-    } catch (err: unknown) {
-      toast.error((err as { detail?: string })?.detail ?? 'Check-in failed')
-    } finally {
-      setActionLoading(false)
-    }
+  const handleCheckIn = () => {
+    checkInMutation.mutate({ notes: checkinNote })
   }
 
-  const handleCheckOut = async () => {
-    setActionLoading(true)
-    try {
-      await checkOut({ notes: checkoutNote })
-      toast.success('Checked out successfully')
-      setCheckoutNote('')
-      fetchData()
-    } catch (err: unknown) {
-      toast.error((err as { detail?: string })?.detail ?? 'Check-out failed')
-    } finally {
-      setActionLoading(false)
-    }
+  const handleCheckOut = () => {
+    checkOutMutation.mutate({ notes: checkoutNote })
   }
 
-  const handleManualEntry = async () => {
-    try {
-      await manualEntry({
-        user_id: manualForm.user_id,
-        date: manualForm.date,
-        check_in: manualForm.check_in || undefined,
-        check_out: manualForm.check_out || undefined,
-        status: manualForm.status,
-        notes: manualForm.notes || undefined,
-      })
-      toast.success('Manual entry added')
-      setManualOpen(false)
-      fetchData()
-    } catch (err: unknown) {
-      toast.error((err as { detail?: string })?.detail ?? 'Failed to add manual entry')
-    }
+  const handleManualEntry = () => {
+    manualEntryMutation.mutate({
+      user_id: manualForm.user_id,
+      date: manualForm.date,
+      check_in: manualForm.check_in || undefined,
+      check_out: manualForm.check_out || undefined,
+      status: manualForm.status,
+      notes: manualForm.notes || undefined,
+    })
   }
 
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteAttendance(id)
-      toast.success('Record deleted')
-      fetchData()
-    } catch {
-      toast.error('Failed to delete')
-    }
+  const handleDelete = (id: string) => {
+    deleteAttendanceMutation.mutate(id)
   }
 
   const myColumns: Column<AttendanceOut>[] = [
@@ -321,7 +363,9 @@ export default function AttendancePage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setManualOpen(false)}>Cancel</Button>
-            <Button onClick={handleManualEntry}>Add Entry</Button>
+            <Button onClick={handleManualEntry} disabled={manualEntryMutation.isPending}>
+              Add Entry
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

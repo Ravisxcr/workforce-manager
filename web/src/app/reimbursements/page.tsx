@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Plus, Check, X, Trash2, Receipt, Upload } from 'lucide-react'
 import { format } from 'date-fns'
@@ -19,22 +20,18 @@ import {
   getMyReimbursements, getAllReimbursements, getReimbursementAnalytics,
   createReimbursement, deleteReimbursement, approveReimbursement,
 } from '@/api/reimbursement'
-import type { ReimbursementOut, ReimbursementAnalytics } from '@/types'
+import type { ReimbursementOut } from '@/types'
 import { useAuth } from '@/context/auth-context'
 
 const REIMB_TYPES = ['travel', 'food', 'accommodation', 'medical', 'equipment', 'training', 'other']
 
 export default function ReimbursementsPage() {
   const { isAdmin } = useAuth()
-  const [myReimb, setMyReimb] = useState<ReimbursementOut[]>([])
-  const [allReimb, setAllReimb] = useState<ReimbursementOut[]>([])
-  const [analytics, setAnalytics] = useState<ReimbursementAnalytics | null>(null)
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [form, setForm] = useState({ amount: '', description: '', date: '', type: '' })
   const [receipt, setReceipt] = useState<File | null>(null)
-  const [saving, setSaving] = useState(false)
 
   const [deleteTarget, setDeleteTarget] = useState<ReimbursementOut | null>(null)
   const [approveTarget, setApproveTarget] = useState<{ r: ReimbursementOut; action: 'approved' | 'rejected' } | null>(null)
@@ -42,71 +39,120 @@ export default function ReimbursementsPage() {
   const [approveDialog, setApproveDialog] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [my, all, analyt] = await Promise.all([
-        getMyReimbursements(),
-        isAdmin ? getAllReimbursements() : Promise.resolve([]),
-        isAdmin ? getReimbursementAnalytics() : Promise.resolve(null),
-      ])
-      setMyReimb(my)
-      setAllReimb(all)
-      setAnalytics(analyt)
-    } catch {
-      toast.error('Failed to load reimbursements')
-    } finally {
-      setLoading(false)
-    }
-  }, [isAdmin])
+  const {
+    data: myReimb = [],
+    isLoading: myReimbLoading,
+    isError: myReimbError,
+  } = useQuery({
+    queryKey: ['reimbursements', 'my'],
+    queryFn: getMyReimbursements,
+  })
 
-  useEffect(() => { fetchAll() }, [fetchAll])
+  const {
+    data: allReimb = [],
+    isLoading: allReimbLoading,
+    isError: allReimbError,
+  } = useQuery({
+    queryKey: ['reimbursements', 'all'],
+    queryFn: () => getAllReimbursements(),
+    enabled: isAdmin,
+  })
 
-  const handleCreate = async () => {
-    if (!receipt) { toast.error('Please attach a receipt'); return }
-    setSaving(true)
-    try {
-      await createReimbursement({ amount: form.amount, description: form.description, date: form.date, remarks: form.type }, receipt)
+  const {
+    data: analytics = null,
+    isLoading: analyticsLoading,
+    isError: analyticsError,
+  } = useQuery({
+    queryKey: ['reimbursements', 'analytics'],
+    queryFn: getReimbursementAnalytics,
+    enabled: isAdmin,
+  })
+
+  const createReimbursementMutation = useMutation({
+    mutationFn: ({ values, file }: {
+      values: { amount: string; description?: string; date: string; remarks: string }
+      file: File
+    }) => createReimbursement(values, file),
+    onSuccess: () => {
       toast.success('Reimbursement submitted')
       setDialogOpen(false)
       setForm({ amount: '', description: '', date: '', type: '' })
       setReceipt(null)
-      fetchAll()
-    } catch (err: unknown) {
-      toast.error((err as { detail?: string })?.detail ?? 'Failed to submit')
-    } finally {
-      setSaving(false)
-    }
-  }
+      queryClient.invalidateQueries({ queryKey: ['reimbursements'] })
+    },
+    onError: (err: { detail?: string }) => {
+      toast.error(err.detail ?? 'Failed to submit')
+    },
+  })
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return
-    try {
-      await deleteReimbursement(deleteTarget.id)
+  const deleteReimbursementMutation = useMutation({
+    mutationFn: deleteReimbursement,
+    onSuccess: () => {
       toast.success('Deleted successfully')
       setDeleteTarget(null)
-      fetchAll()
-    } catch {
+      queryClient.invalidateQueries({ queryKey: ['reimbursements'] })
+    },
+    onError: () => {
       toast.error('Failed to delete')
-    }
-  }
+    },
+  })
 
-  const handleApprove = async () => {
-    if (!approveTarget) return
-    try {
-      await approveReimbursement(approveTarget.r.id, {
-        status: approveTarget.action,
-        remarks: approveRemarks || undefined,
-        date_approved: approveTarget.action === 'approved' ? format(new Date(), 'yyyy-MM-dd') : undefined,
-      })
-      toast.success(`Reimbursement ${approveTarget.action}`)
+  const approveReimbursementMutation = useMutation({
+    mutationFn: ({ reimbursement, action, remarks }: {
+      reimbursement: ReimbursementOut
+      action: 'approved' | 'rejected'
+      remarks?: string
+    }) => approveReimbursement(reimbursement.id, {
+      status: action,
+      remarks,
+      date_approved: action === 'approved' ? format(new Date(), 'yyyy-MM-dd') : undefined,
+    }),
+    onSuccess: (_data, variables) => {
+      toast.success(`Reimbursement ${variables.action}`)
       setApproveTarget(null)
       setApproveRemarks('')
       setApproveDialog(false)
-      fetchAll()
-    } catch {
+      queryClient.invalidateQueries({ queryKey: ['reimbursements'] })
+    },
+    onError: () => {
       toast.error('Action failed')
+    },
+  })
+
+  const loading = myReimbLoading || (isAdmin && (allReimbLoading || analyticsLoading))
+  const saving = createReimbursementMutation.isPending
+
+  useEffect(() => {
+    if (myReimbError || (isAdmin && (allReimbError || analyticsError))) {
+      toast.error('Failed to load reimbursements')
     }
+  }, [allReimbError, analyticsError, isAdmin, myReimbError])
+
+  const handleCreate = () => {
+    if (!receipt) { toast.error('Please attach a receipt'); return }
+    createReimbursementMutation.mutate({
+      values: {
+        amount: form.amount,
+        description: form.description,
+        date: form.date,
+        remarks: form.type,
+      },
+      file: receipt,
+    })
+  }
+
+  const handleDelete = () => {
+    if (!deleteTarget) return
+    deleteReimbursementMutation.mutate(deleteTarget.id)
+  }
+
+  const handleApprove = () => {
+    if (!approveTarget) return
+    approveReimbursementMutation.mutate({
+      reimbursement: approveTarget.r,
+      action: approveTarget.action,
+      remarks: approveRemarks || undefined,
+    })
   }
 
   // const filteredAll = statusFilter === 'all' ? allReimb : allReimb.filter((r) => r.status === statusFilter)

@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Plus, Check, X, Download, Trash2, FileText, Eye } from 'lucide-react'
 import { format } from 'date-fns'
@@ -25,16 +26,11 @@ import { useAuth } from '@/context/auth-context'
 export default function DocumentsPage() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'  
-  const [myDocs, setMyDocs] = useState<DocumentOut[]>([])
-  const [pendingDocs, setPendingDocs] = useState<DocumentOut[]>([])
-  const [allDocs, setAllDocs] = useState<DocumentOut[]>([])
-  const [docTypes, setDocTypes] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
 
   const [uploadDialog, setUploadDialog] = useState(false)
   const [uploadForm, setUploadForm] = useState({ document_type: '', description: '' })
   const [uploadFile, setUploadFile] = useState<File | null>(null)
-  const [saving, setSaving] = useState(false)
 
   const [verifyTarget, setVerifyTarget] = useState<DocumentOut | null>(null)
   const [verifyAction, setVerifyAction] = useState<'verified' | 'rejected'>('verified')
@@ -46,83 +42,131 @@ export default function DocumentsPage() {
   const [open, setOpen] = useState(false)
   const [previewUrl, setPreviewUrl] = useState('')
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true)
-    try {  
-      // Always fetch common data
-      const [my, types] = await Promise.all([
-        getMyDocuments(),
-        getDocumentTypes(),
-      ])
-      setMyDocs(my)
-      setDocTypes(Array.isArray(types) ? types : [])
+  const {
+    data: myDocs = [],
+    isLoading: myDocsLoading,
+    isError: myDocsError,
+  } = useQuery({
+    queryKey: ['documents', 'my'],
+    queryFn: getMyDocuments,
+  })
 
-      if (isAdmin) {
-      const [pending, all] = await Promise.all([
-        getPendingDocuments(),
-        getAllDocuments(),
-      ])
-      setPendingDocs(pending)
-      setAllDocs(Array.isArray(all) ? all : [])
-    }
-      } catch (err) {
-        toast.error('Failed to load documents')
-      } finally {
-        setLoading(false)
-      }
-  }, [isAdmin])
+  const {
+    data: docTypes = [],
+    isLoading: docTypesLoading,
+    isError: docTypesError,
+  } = useQuery({
+    queryKey: ['documents', 'types'],
+    queryFn: getDocumentTypes,
+    select: (types) => Array.isArray(types) ? types : [],
+  })
 
-  useEffect(() => {
-    if (!open && previewUrl) {
-      URL.revokeObjectURL(previewUrl)
-      setPreviewUrl('')
-    }
-  }, [open, previewUrl])
+  const {
+    data: pendingDocs = [],
+    isLoading: pendingDocsLoading,
+    isError: pendingDocsError,
+  } = useQuery({
+    queryKey: ['documents', 'pending'],
+    queryFn: getPendingDocuments,
+    enabled: isAdmin,
+  })
 
-  useEffect(() => { fetchAll() }, [fetchAll])
+  const {
+    data: allDocs = [],
+    isLoading: allDocsLoading,
+    isError: allDocsError,
+  } = useQuery({
+    queryKey: ['documents', 'all'],
+    queryFn: getAllDocuments,
+    enabled: isAdmin,
+    select: (docs) => Array.isArray(docs) ? docs : [],
+  })
 
-  const handleUpload = async () => {
-    if (!uploadFile) { toast.error('Please select a file'); return }
-    if (!uploadForm.document_type) { toast.error('Please select document type'); return }
-    setSaving(true)
-    try {
-      await uploadDocument({ document_type: uploadForm.document_type, file: uploadFile, description: uploadForm.description || undefined })
+  const uploadDocumentMutation = useMutation({
+    mutationFn: uploadDocument,
+    onSuccess: () => {
       toast.success('Document uploaded')
       setUploadDialog(false)
       setUploadForm({ document_type: '', description: '' })
       setUploadFile(null)
-      fetchAll()
-    } catch (err: unknown) {
-      toast.error((err as { detail?: string })?.detail ?? 'Upload failed')
-    } finally {
-      setSaving(false)
-    }
-  }
+      queryClient.invalidateQueries({ queryKey: ['documents'] })
+    },
+    onError: (err: { detail?: string }) => {
+      toast.error(err.detail ?? 'Upload failed')
+    },
+  })
 
-  const handleVerify = async () => {
-    if (!verifyTarget) return
-    try {
-      await verifyDocument(verifyTarget.id, { status: verifyAction, comment: verifyComment || undefined })
-      toast.success(`Document ${verifyAction}`)
+  const verifyDocumentMutation = useMutation({
+    mutationFn: ({ id, status, comment }: { id: string; status: 'verified' | 'rejected'; comment?: string }) =>
+      verifyDocument(id, { status, comment }),
+    onSuccess: (_data, variables) => {
+      toast.success(`Document ${variables.status}`)
       setVerifyDialog(false)
       setVerifyTarget(null)
       setVerifyComment('')
-      fetchAll()
-    } catch {
+      queryClient.invalidateQueries({ queryKey: ['documents'] })
+    },
+    onError: () => {
       toast.error('Verification failed')
-    }
-  }
+    },
+  })
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return
-    try {
-      await deleteDocument(deleteTarget.id)
+  const deleteDocumentMutation = useMutation({
+    mutationFn: deleteDocument,
+    onSuccess: () => {
       toast.success('Document deleted')
       setDeleteTarget(null)
-      fetchAll()
-    } catch {
+      queryClient.invalidateQueries({ queryKey: ['documents'] })
+    },
+    onError: () => {
       toast.error('Failed to delete')
+    },
+  })
+
+  const loading =
+    myDocsLoading ||
+    docTypesLoading ||
+    (isAdmin && (pendingDocsLoading || allDocsLoading))
+  const saving = uploadDocumentMutation.isPending
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
     }
+  }, [previewUrl])
+
+  useEffect(() => {
+    if (
+      myDocsError ||
+      docTypesError ||
+      (isAdmin && (pendingDocsError || allDocsError))
+    ) {
+      toast.error('Failed to load documents')
+    }
+  }, [allDocsError, docTypesError, isAdmin, myDocsError, pendingDocsError])
+
+  const handleUpload = () => {
+    if (!uploadFile) { toast.error('Please select a file'); return }
+    if (!uploadForm.document_type) { toast.error('Please select document type'); return }
+    uploadDocumentMutation.mutate({
+      document_type: uploadForm.document_type,
+      file: uploadFile,
+      description: uploadForm.description || undefined,
+    })
+  }
+
+  const handleVerify = () => {
+    if (!verifyTarget) return
+    verifyDocumentMutation.mutate({
+      id: verifyTarget.id,
+      status: verifyAction,
+      comment: verifyComment || undefined,
+    })
+  }
+
+  const handleDelete = () => {
+    if (!deleteTarget) return
+    deleteDocumentMutation.mutate(deleteTarget.id)
   }
 
   const openVerify = (doc: DocumentOut, action: 'verified' | 'rejected') => {
@@ -142,6 +186,14 @@ export default function DocumentsPage() {
       setOpen(true)
     } catch (err) {
       console.error(err)
+    }
+  }
+
+  const handlePreviewOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen)
+    if (!isOpen && previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+      setPreviewUrl('')
     }
   }
 
@@ -325,7 +377,7 @@ export default function DocumentsPage() {
         destructive
       />
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handlePreviewOpenChange}>
         <DialogContent className="max-w-6xl h-[90vh] p-0 overflow-hidden">
           
           <div className="flex items-center justify-between border-b px-4 py-3">

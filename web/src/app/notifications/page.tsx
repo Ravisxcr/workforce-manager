@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Bell, BellOff, Check, CheckCheck, Trash2, Send, Users } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
@@ -22,7 +23,7 @@ import {
   sendNotification, broadcastNotification,
 } from '@/api/notification'
 import { listEmployees } from '@/api/employee'
-import type { NotificationOut, EmployeeOut } from '@/types'
+import type { NotificationOut } from '@/types'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/auth-context'
 
@@ -30,96 +31,125 @@ const NOTIF_TYPES = ['info', 'warning', 'error', 'success']
 
 export default function NotificationsPage() {
   const { isAdmin } = useAuth()
-  const [notifications, setNotifications] = useState<NotificationOut[]>([])
-  const [employees, setEmployees] = useState<EmployeeOut[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
 
   const [sendDialog, setSendDialog] = useState(false)
   const [broadcastDialog, setBroadcastDialog] = useState(false)
   const [sendForm, setSendForm] = useState({ user_id: '', title: '', message: '', type: 'info', link: '' })
   const [broadcastForm, setBroadcastForm] = useState({ user_ids: [] as string[], title: '', message: '', type: 'info', link: '' })
-  const [saving, setSaving] = useState(false)
 
   const [deleteTarget, setDeleteTarget] = useState<NotificationOut | null>(null)
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [notifs, emps] = await Promise.all([getMyNotifications(), isAdmin ? listEmployees() : Promise.resolve([])])
-      setNotifications(notifs)
-      setEmployees(emps)
-    } catch {
-      toast.error('Failed to load notifications')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const {
+    data: notifications = [],
+    isLoading: notificationsLoading,
+    isError: notificationsError,
+  } = useQuery({
+    queryKey: ['notifications', 'me'],
+    queryFn: getMyNotifications,
+  })
 
-  useEffect(() => { fetchAll() }, [fetchAll])
+  const {
+    data: employees = [],
+    isLoading: employeesLoading,
+    isError: employeesError,
+  } = useQuery({
+    queryKey: ['employees'],
+    queryFn: () => listEmployees(),
+    enabled: isAdmin,
+  })
 
-  const unread = notifications.filter((n) => !n.is_read)
-
-  const handleMarkRead = async (n: NotificationOut) => {
-    if (n.is_read) return
-    try {
-      await markAsRead(n.id)
-      setNotifications((prev) => prev.map((x) => x.id === n.id ? { ...x, is_read: true } : x))
-    } catch {
+  const markReadMutation = useMutation({
+    mutationFn: markAsRead,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    },
+    onError: () => {
       toast.error('Failed to mark as read')
-    }
-  }
+    },
+  })
 
-  const handleMarkAll = async () => {
-    try {
-      await markAllRead()
-      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
+  const markAllReadMutation = useMutation({
+    mutationFn: markAllRead,
+    onSuccess: () => {
       toast.success('All notifications marked as read')
-    } catch {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    },
+    onError: () => {
       toast.error('Failed to mark all as read')
-    }
-  }
+    },
+  })
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return
-    try {
-      await deleteNotification(deleteTarget.id)
-      setNotifications((prev) => prev.filter((n) => n.id !== deleteTarget.id))
+  const deleteNotificationMutation = useMutation({
+    mutationFn: deleteNotification,
+    onSuccess: () => {
       setDeleteTarget(null)
       toast.success('Notification deleted')
-    } catch {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    },
+    onError: () => {
       toast.error('Failed to delete')
-    }
-  }
+    },
+  })
 
-  const handleSend = async () => {
-    setSaving(true)
-    try {
-      await sendNotification({ ...sendForm, link: sendForm.link || undefined })
+  const sendNotificationMutation = useMutation({
+    mutationFn: sendNotification,
+    onSuccess: () => {
       toast.success('Notification sent')
       setSendDialog(false)
       setSendForm({ user_id: '', title: '', message: '', type: 'info', link: '' })
-      fetchAll()
-    } catch (err: unknown) {
-      toast.error((err as { detail?: string })?.detail ?? 'Failed to send')
-    } finally {
-      setSaving(false)
-    }
-  }
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    },
+    onError: (err: { detail?: string }) => {
+      toast.error(err.detail ?? 'Failed to send')
+    },
+  })
 
-  const handleBroadcast = async () => {
-    if (broadcastForm.user_ids.length === 0) { toast.error('Select at least one employee'); return }
-    setSaving(true)
-    try {
-      await broadcastNotification({ ...broadcastForm, link: broadcastForm.link || undefined })
-      toast.success(`Broadcast sent to ${broadcastForm.user_ids.length} employees`)
+  const broadcastNotificationMutation = useMutation({
+    mutationFn: broadcastNotification,
+    onSuccess: (_data, variables) => {
+      toast.success(`Broadcast sent to ${variables.user_ids.length} employees`)
       setBroadcastDialog(false)
       setBroadcastForm({ user_ids: [], title: '', message: '', type: 'info', link: '' })
-      fetchAll()
-    } catch (err: unknown) {
-      toast.error((err as { detail?: string })?.detail ?? 'Failed to broadcast')
-    } finally {
-      setSaving(false)
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    },
+    onError: (err: { detail?: string }) => {
+      toast.error(err.detail ?? 'Failed to broadcast')
+    },
+  })
+
+  const loading = notificationsLoading || (isAdmin && employeesLoading)
+  const saving = sendNotificationMutation.isPending || broadcastNotificationMutation.isPending
+
+  useEffect(() => {
+    if (notificationsError || (isAdmin && employeesError)) {
+      toast.error('Failed to load notifications')
     }
+  }, [employeesError, isAdmin, notificationsError])
+
+  const unread = notifications.filter((n) => !n.is_read)
+
+  const handleMarkRead = (n: NotificationOut) => {
+    if (n.is_read) return
+    markReadMutation.mutate(n.id)
+  }
+
+  const handleMarkAll = () => {
+    markAllReadMutation.mutate()
+  }
+
+  const handleDelete = () => {
+    if (!deleteTarget) return
+    deleteNotificationMutation.mutate(deleteTarget.id)
+  }
+
+  const handleSend = () => {
+    sendNotificationMutation.mutate({ ...sendForm, link: sendForm.link || undefined })
+  }
+
+  const handleBroadcast = () => {
+    if (broadcastForm.user_ids.length === 0) { toast.error('Select at least one employee'); return }
+    broadcastNotificationMutation.mutate({ ...broadcastForm, link: broadcastForm.link || undefined })
   }
 
   const toggleEmployee = (id: string) => {

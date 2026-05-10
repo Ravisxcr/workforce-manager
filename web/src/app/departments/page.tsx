@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, Building2, Briefcase } from 'lucide-react'
 import { PageHeader } from '@/components/common/page-header'
@@ -18,13 +19,10 @@ import {
   listDesignations, createDesignation, updateDesignation, deleteDesignation,
 } from '@/api/department'
 import { getManagers } from '@/api/employee'
-import type { DepartmentOut, DepartmentCreate, DesignationOut, DesignationCreate, EmployeeOut } from '@/types'
+import type { DepartmentOut, DepartmentCreate, DesignationOut, DesignationCreate } from '@/types'
 
 export default function DepartmentsPage() {
-  const [departments, setDepartments] = useState<DepartmentOut[]>([])
-  const [designations, setDesignations] = useState<DesignationOut[]>([])
-  const [managers, setManagers] = useState<EmployeeOut[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
 
   const [deptDialog, setDeptDialog] = useState(false)
   const [editDept, setEditDept] = useState<DepartmentOut | null>(null)
@@ -36,27 +34,93 @@ export default function DepartmentsPage() {
 
   const [deleteDeptTarget, setDeleteDeptTarget] = useState<DepartmentOut | null>(null)
   const [deleteDesigTarget, setDeleteDesigTarget] = useState<DesignationOut | null>(null)
-  const [saving, setSaving] = useState(false)
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [depts, desigs, mgrs] = await Promise.all([
-        listDepartments(),
-        listDesignations(),
-        getManagers(),
-      ])
-      setDepartments(depts)
-      setDesignations(desigs)
-      setManagers(mgrs)
-    } catch {
+  const {
+    data: departments = [],
+    isLoading: departmentsLoading,
+    isError: departmentsError,
+  } = useQuery({
+    queryKey: ['departments'],
+    queryFn: listDepartments,
+  })
+
+  const {
+    data: designations = [],
+    isLoading: designationsLoading,
+    isError: designationsError,
+  } = useQuery({
+    queryKey: ['designations'],
+    queryFn: () => listDesignations(),
+  })
+
+  const {
+    data: managers = [],
+    isLoading: managersLoading,
+    isError: managersError,
+  } = useQuery({
+    queryKey: ['employees', 'managers'],
+    queryFn: getManagers,
+  })
+
+  const saveDepartmentMutation = useMutation({
+    mutationFn: (payload: DepartmentCreate) =>
+      editDept ? updateDepartment(editDept.id, payload) : createDepartment(payload),
+    onSuccess: () => {
+      toast.success(editDept ? 'Department updated' : 'Department created')
+      setDeptDialog(false)
+      queryClient.invalidateQueries({ queryKey: ['departments'] })
+    },
+    onError: (err: { detail?: string }) => {
+      toast.error(err.detail ?? 'Failed to save')
+    },
+  })
+
+  const deleteDepartmentMutation = useMutation({
+    mutationFn: deleteDepartment,
+    onSuccess: () => {
+      toast.success('Department deleted')
+      setDeleteDeptTarget(null)
+      queryClient.invalidateQueries({ queryKey: ['departments'] })
+      queryClient.invalidateQueries({ queryKey: ['designations'] })
+    },
+    onError: () => {
+      toast.error('Failed to delete department')
+    },
+  })
+
+  const saveDesignationMutation = useMutation({
+    mutationFn: (payload: DesignationCreate) =>
+      editDesig ? updateDesignation(editDesig.id, payload) : createDesignation(payload),
+    onSuccess: () => {
+      toast.success(editDesig ? 'Designation updated' : 'Designation created')
+      setDesigDialog(false)
+      queryClient.invalidateQueries({ queryKey: ['designations'] })
+    },
+    onError: (err: { detail?: string }) => {
+      toast.error(err.detail ?? 'Failed to save')
+    },
+  })
+
+  const deleteDesignationMutation = useMutation({
+    mutationFn: deleteDesignation,
+    onSuccess: () => {
+      toast.success('Designation deleted')
+      setDeleteDesigTarget(null)
+      queryClient.invalidateQueries({ queryKey: ['designations'] })
+    },
+    onError: () => {
+      toast.error('Failed to delete designation')
+    },
+  })
+
+  const loading = departmentsLoading || designationsLoading || managersLoading
+  const saving = saveDepartmentMutation.isPending || saveDesignationMutation.isPending
+
+  useEffect(() => {
+    if (departmentsError || designationsError || managersError) {
       toast.error('Failed to load data')
-    } finally {
-      setLoading(false)
     }
-  }, [])
-
-  useEffect(() => { fetchAll() }, [fetchAll])
+  }, [departmentsError, designationsError, managersError])
 
   const openCreateDept = () => {
     setEditDept(null)
@@ -70,36 +134,18 @@ export default function DepartmentsPage() {
     setDeptDialog(true)
   }
 
-  const saveDept = async () => {
-    setSaving(true)
-    try {
-      const payload = { ...deptForm, head_id: deptForm.head_id || undefined, description: deptForm.description || undefined }
-      if (editDept) {
-        await updateDepartment(editDept.id, payload)
-        toast.success('Department updated')
-      } else {
-        await createDepartment(payload)
-        toast.success('Department created')
-      }
-      setDeptDialog(false)
-      fetchAll()
-    } catch (err: unknown) {
-      toast.error((err as { detail?: string })?.detail ?? 'Failed to save')
-    } finally {
-      setSaving(false)
+  const saveDept = () => {
+    const payload = {
+      ...deptForm,
+      head_id: deptForm.head_id || undefined,
+      description: deptForm.description || undefined,
     }
+    saveDepartmentMutation.mutate(payload)
   }
 
-  const handleDeleteDept = async () => {
+  const handleDeleteDept = () => {
     if (!deleteDeptTarget) return
-    try {
-      await deleteDepartment(deleteDeptTarget.id)
-      toast.success('Department deleted')
-      setDeleteDeptTarget(null)
-      fetchAll()
-    } catch {
-      toast.error('Failed to delete department')
-    }
+    deleteDepartmentMutation.mutate(deleteDeptTarget.id)
   }
 
   const openCreateDesig = () => {
@@ -114,40 +160,18 @@ export default function DepartmentsPage() {
     setDesigDialog(true)
   }
 
-  const saveDesig = async () => {
-    setSaving(true)
-    try {
-      const payload = {
-        name: desigForm.name,
-        department_id: desigForm.department_id || undefined,
-        level: desigForm.level,
-      }
-      if (editDesig) {
-        await updateDesignation(editDesig.id, payload)
-        toast.success('Designation updated')
-      } else {
-        await createDesignation(payload)
-        toast.success('Designation created')
-      }
-      setDesigDialog(false)
-      fetchAll()
-    } catch (err: unknown) {
-      toast.error((err as { detail?: string })?.detail ?? 'Failed to save')
-    } finally {
-      setSaving(false)
+  const saveDesig = () => {
+    const payload = {
+      name: desigForm.name,
+      department_id: desigForm.department_id || undefined,
+      level: desigForm.level,
     }
+    saveDesignationMutation.mutate(payload)
   }
 
-  const handleDeleteDesig = async () => {
+  const handleDeleteDesig = () => {
     if (!deleteDesigTarget) return
-    try {
-      await deleteDesignation(deleteDesigTarget.id)
-      toast.success('Designation deleted')
-      setDeleteDesigTarget(null)
-      fetchAll()
-    } catch {
-      toast.error('Failed to delete designation')
-    }
+    deleteDesignationMutation.mutate(deleteDesigTarget.id)
   }
 
   const deptColumns: Column<DepartmentOut>[] = [

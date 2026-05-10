@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Plus, Trash2, DollarSign, TrendingUp, Users } from 'lucide-react'
 import { format } from 'date-fns'
@@ -21,7 +22,7 @@ import {
   getMySalarySlips,
 } from '@/api/salary'
 import { listEmployees } from '@/api/employee'
-import type { SalarySlipOut, SalarySlipCreate, SalaryHistoryOut, SalaryHistoryCreate, SalaryAnalytics, EmployeeOut } from '@/types'
+import type { SalarySlipOut, SalarySlipCreate, SalaryHistoryOut, SalaryHistoryCreate } from '@/types'
 import { useAuth } from '@/context/auth-context'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -30,14 +31,7 @@ export default function SalaryPage() {
   const now = new Date()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
-
-  const [mySlips, setMySlips] = useState<SalarySlipOut[]>([])
-  const [myHistory, setMyHistory] = useState<SalaryHistoryOut[]>([])
-  const [employees, setEmployees] = useState<EmployeeOut[]>([])
-  const [slips, setSlips] = useState<SalarySlipOut[]>([])
-  const [history, setHistory] = useState<SalaryHistoryOut[]>([])
-  const [analytics, setAnalytics] = useState<SalaryAnalytics | null>(null)
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
 
   const [slipDialog, setSlipDialog] = useState(false)
   const [slipForm, setSlipForm] = useState<SalarySlipCreate>({
@@ -53,67 +47,153 @@ export default function SalaryPage() {
 
   const [deleteSlip, setDeleteSlip] = useState<SalarySlipOut | null>(null)
   const [deleteHistory, setDeleteHistoryTarget] = useState<SalaryHistoryOut | null>(null)
-  const [saving, setSaving] = useState(false)
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [mySlips, myHistory] = await Promise.all([
-        getMySalarySlips(),
-        getMySalaryHistory(),
-      ])
-      setMySlips(mySlips)
-      setMyHistory(myHistory)
+  const {
+    data: mySlips = [],
+    isLoading: mySlipsLoading,
+    isError: mySlipsError,
+  } = useQuery({
+    queryKey: ['salary', 'slips', 'my'],
+    queryFn: getMySalarySlips,
+  })
 
-      if (isAdmin) {
-        const [emps, slipList, hist, analyt] = await Promise.all([
-          listEmployees(),
-          listAllSalarySlips(),
-          getSalaryHistory(),
-          getSalaryAnalytics(),
-        ])
-        setEmployees(emps)
-        setSlips(slipList)
-        setHistory(hist)
-        setAnalytics(analyt)
-      }
-    } catch {
+  const {
+    data: myHistory = [],
+    isLoading: myHistoryLoading,
+    isError: myHistoryError,
+  } = useQuery({
+    queryKey: ['salary', 'history', 'my'],
+    queryFn: getMySalaryHistory,
+  })
+
+  const {
+    data: employees = [],
+    isLoading: employeesLoading,
+    isError: employeesError,
+  } = useQuery({
+    queryKey: ['employees'],
+    queryFn: () => listEmployees(),
+    enabled: isAdmin,
+  })
+
+  const {
+    data: slips = [],
+    isLoading: slipsLoading,
+    isError: slipsError,
+  } = useQuery({
+    queryKey: ['salary', 'slips', 'all'],
+    queryFn: () => listAllSalarySlips(),
+    enabled: isAdmin,
+  })
+
+  const {
+    data: history = [],
+    isLoading: historyLoading,
+    isError: historyError,
+  } = useQuery({
+    queryKey: ['salary', 'history', 'all'],
+    queryFn: getSalaryHistory,
+    enabled: isAdmin,
+  })
+
+  const {
+    data: analytics = null,
+    isLoading: analyticsLoading,
+    isError: analyticsError,
+  } = useQuery({
+    queryKey: ['salary', 'analytics'],
+    queryFn: getSalaryAnalytics,
+    enabled: isAdmin,
+  })
+
+  const createSalarySlipMutation = useMutation({
+    mutationFn: createSalarySlip,
+    onSuccess: () => {
+      toast.success('Salary slip created')
+      setSlipDialog(false)
+      queryClient.invalidateQueries({ queryKey: ['salary'] })
+    },
+    onError: (err: { detail?: string }) => {
+      toast.error(err.detail ?? 'Failed to create slip')
+    },
+  })
+
+  const createSalaryHistoryMutation = useMutation({
+    mutationFn: createSalaryHistory,
+    onSuccess: () => {
+      toast.success('Salary history added')
+      setHistoryDialog(false)
+      queryClient.invalidateQueries({ queryKey: ['salary'] })
+    },
+    onError: (err: { detail?: string }) => {
+      toast.error(err.detail ?? 'Failed to add history')
+    },
+  })
+
+  const deleteSalarySlipMutation = useMutation({
+    mutationFn: deleteSalarySlip,
+    onSuccess: () => {
+      setDeleteSlip(null)
+      queryClient.invalidateQueries({ queryKey: ['salary'] })
+    },
+    onError: () => {
+      toast.error('Failed to delete salary slip')
+    },
+  })
+
+  const deleteSalaryHistoryMutation = useMutation({
+    mutationFn: deleteSalaryHistory,
+    onSuccess: () => {
+      setDeleteHistoryTarget(null)
+      queryClient.invalidateQueries({ queryKey: ['salary'] })
+    },
+    onError: () => {
+      toast.error('Failed to delete salary history')
+    },
+  })
+
+  const loading =
+    mySlipsLoading ||
+    myHistoryLoading ||
+    (isAdmin && (employeesLoading || slipsLoading || historyLoading || analyticsLoading))
+  const saving = createSalarySlipMutation.isPending || createSalaryHistoryMutation.isPending
+
+  useEffect(() => {
+    if (
+      mySlipsError ||
+      myHistoryError ||
+      (isAdmin && (employeesError || slipsError || historyError || analyticsError))
+    ) {
       toast.error('Failed to load salary data')
-    } finally {
-      setLoading(false)
     }
-  }, [])
-
-  useEffect(() => { fetchAll() }, [fetchAll])
+  }, [
+    analyticsError,
+    employeesError,
+    historyError,
+    isAdmin,
+    myHistoryError,
+    mySlipsError,
+    slipsError,
+  ])
 
   const empName = (id: string) => employees.find((e) => e.id === id)?.full_name ?? id.slice(0, 8)
 
-  const saveSlip = async () => {
-    setSaving(true)
-    try {
-      await createSalarySlip(slipForm)
-      toast.success('Salary slip created')
-      setSlipDialog(false)
-      fetchAll()
-    } catch (err: unknown) {
-      toast.error((err as { detail?: string })?.detail ?? 'Failed to create slip')
-    } finally {
-      setSaving(false)
-    }
+  const saveSlip = () => {
+    createSalarySlipMutation.mutate(slipForm)
   }
 
-  const saveHistory = async () => {
-    setSaving(true)
-    try {
-      await createSalaryHistory(historyForm)
-      toast.success('Salary history added')
-      setHistoryDialog(false)
-      fetchAll()
-    } catch (err: unknown) {
-      toast.error((err as { detail?: string })?.detail ?? 'Failed to add history')
-    } finally {
-      setSaving(false)
-    }
+  const saveHistory = () => {
+    createSalaryHistoryMutation.mutate(historyForm)
+  }
+
+  const handleDeleteSlip = () => {
+    if (!deleteSlip) return
+    deleteSalarySlipMutation.mutate(deleteSlip.id)
+  }
+
+  const handleDeleteHistory = () => {
+    if (!deleteHistory) return
+    deleteSalaryHistoryMutation.mutate(deleteHistory.id)
   }
 
   const slipColumns: Column<SalarySlipOut>[] = [
@@ -294,7 +374,7 @@ export default function SalaryPage() {
         title="Delete Salary Slip"
         description="Are you sure you want to delete this salary slip?"
         confirmLabel="Delete"
-        onConfirm={async () => { if (deleteSlip) { await deleteSalarySlip(deleteSlip.id); setDeleteSlip(null); fetchAll() } }}
+        onConfirm={handleDeleteSlip}
         destructive
       />
       <ConfirmDialog
@@ -303,7 +383,7 @@ export default function SalaryPage() {
         title="Delete Salary History"
         description="Are you sure you want to delete this record?"
         confirmLabel="Delete"
-        onConfirm={async () => { if (deleteHistory) { await deleteSalaryHistory(deleteHistory.id); setDeleteHistoryTarget(null); fetchAll() } }}
+        onConfirm={handleDeleteHistory}
         destructive
       />
     </div>
