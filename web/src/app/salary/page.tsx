@@ -41,14 +41,14 @@ export default function SalaryPage() {
 
   const [slipDialog, setSlipDialog] = useState(false)
   const [slipForm, setSlipForm] = useState<SalarySlipCreate>({
-    employee_id: '', month: '', year: now.getFullYear(),
+    user_id: '', month: '', year: now.getFullYear(),
     basic: 0, hra: 0, allowances: 0, deductions: 0, net_pay: 0,
     date_generated: format(now, 'yyyy-MM-dd'),
   })
 
   const [historyDialog, setHistoryDialog] = useState(false)
   const [historyForm, setHistoryForm] = useState<SalaryHistoryCreate>({
-    employee_id: '', amount: 0, date: format(now, "yyyy-MM-dd'T'HH:mm"), remarks: '',
+    user_id: '', amount: 0, date: format(now, "yyyy-MM-dd'T'HH:mm"), remarks: '',
   })
 
   const [deleteSlip, setDeleteSlip] = useState<SalarySlipOut | null>(null)
@@ -117,7 +117,7 @@ export default function SalaryPage() {
   }
 
   const slipColumns: Column<SalarySlipOut>[] = [
-    { key: 'employee', header: 'Employee', cell: (s) => <span className="font-medium">{empName(s.employee_id)}</span> },
+    { key: 'employee', header: 'Employee', cell: (s) => <span className="font-medium">{empName(s.user_id)}</span> },
     { key: 'period', header: 'Period', cell: (s) => <span>{s.month} {s.year}</span> },
     { key: 'basic', header: 'Basic', cell: (s) => `₹${s.basic.toLocaleString()}` },
     { key: 'hra', header: 'HRA', cell: (s) => `₹${s.hra.toLocaleString()}` },
@@ -135,7 +135,7 @@ export default function SalaryPage() {
   ]
 
   const historyColumns: Column<SalaryHistoryOut>[] = [
-    { key: 'employee', header: 'Employee', cell: (h) => <span className="font-medium">{empName(h.employee_id)}</span> },
+    { key: 'employee', header: 'Employee', cell: (h) => <span className="font-medium">{empName(h.user_id)}</span> },
     { key: 'amount', header: 'Amount', cell: (h) => <span className="font-semibold">₹{h.amount.toLocaleString()}</span> },
     { key: 'date', header: 'Effective Date', cell: (h) => format(new Date(h.date), 'MMM d, yyyy') },
     { key: 'remarks', header: 'Remarks', cell: (h) => <span className="text-sm text-muted-foreground">{h.remarks ?? '—'}</span> },
@@ -176,11 +176,11 @@ export default function SalaryPage() {
 
           {isAdmin && (  
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => { setHistoryForm({ employee_id: '', amount: 0, date: format(now, "yyyy-MM-dd'T'HH:mm"), remarks: '' }); setHistoryDialog(true) }}>
+            <Button size="sm" variant="outline" onClick={() => { setHistoryForm({ user_id: '', amount: 0, date: format(now, "yyyy-MM-dd'T'HH:mm"), remarks: '' }); setHistoryDialog(true) }}>
               <Plus className="mr-2 h-4 w-4" />
               Add History
             </Button>
-            <Button size="sm" onClick={() => { setSlipForm({ employee_id: '', month: '', year: now.getFullYear(), basic: 0, hra: 0, allowances: 0, deductions: 0, net_pay: 0, date_generated: format(now, 'yyyy-MM-dd') }); setSlipDialog(true) }}>
+            <Button size="sm" onClick={() => { setSlipForm({ user_id: '', month: '', year: now.getFullYear(), basic: 0, hra: 0, allowances: 0, deductions: 0, net_pay: 0, date_generated: format(now, 'yyyy-MM-dd') }); setSlipDialog(true) }}>
               <Plus className="mr-2 h-4 w-4" />
               Create Slip
             </Button>
@@ -216,7 +216,7 @@ export default function SalaryPage() {
           <div className="grid grid-cols-2 gap-4 py-2">
             <div className="col-span-2 space-y-2">
               <Label>Employee *</Label>
-              <Select value={slipForm.employee_id} onValueChange={(v) => setSlipForm({ ...slipForm, employee_id: v })}>
+              <Select value={slipForm.user_id} onValueChange={(v) => setSlipForm({ ...slipForm, user_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
                   {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
@@ -261,7 +261,7 @@ export default function SalaryPage() {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Employee *</Label>
-              <Select value={historyForm.employee_id} onValueChange={(v) => setHistoryForm({ ...historyForm, employee_id: v })}>
+              <Select value={historyForm.user_id} onValueChange={(v) => setHistoryForm({ ...historyForm, user_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
                   {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}

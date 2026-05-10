@@ -36,8 +36,8 @@ export default function NotificationsPage() {
 
   const [sendDialog, setSendDialog] = useState(false)
   const [broadcastDialog, setBroadcastDialog] = useState(false)
-  const [sendForm, setSendForm] = useState({ employee_id: '', title: '', message: '', type: 'info', link: '' })
-  const [broadcastForm, setBroadcastForm] = useState({ employee_ids: [] as string[], title: '', message: '', type: 'info', link: '' })
+  const [sendForm, setSendForm] = useState({ user_id: '', title: '', message: '', type: 'info', link: '' })
+  const [broadcastForm, setBroadcastForm] = useState({ user_ids: [] as string[], title: '', message: '', type: 'info', link: '' })
   const [saving, setSaving] = useState(false)
 
   const [deleteTarget, setDeleteTarget] = useState<NotificationOut | null>(null)
@@ -97,7 +97,7 @@ export default function NotificationsPage() {
       await sendNotification({ ...sendForm, link: sendForm.link || undefined })
       toast.success('Notification sent')
       setSendDialog(false)
-      setSendForm({ employee_id: '', title: '', message: '', type: 'info', link: '' })
+      setSendForm({ user_id: '', title: '', message: '', type: 'info', link: '' })
       fetchAll()
     } catch (err: unknown) {
       toast.error((err as { detail?: string })?.detail ?? 'Failed to send')
@@ -107,13 +107,13 @@ export default function NotificationsPage() {
   }
 
   const handleBroadcast = async () => {
-    if (broadcastForm.employee_ids.length === 0) { toast.error('Select at least one employee'); return }
+    if (broadcastForm.user_ids.length === 0) { toast.error('Select at least one employee'); return }
     setSaving(true)
     try {
       await broadcastNotification({ ...broadcastForm, link: broadcastForm.link || undefined })
-      toast.success(`Broadcast sent to ${broadcastForm.employee_ids.length} employees`)
+      toast.success(`Broadcast sent to ${broadcastForm.user_ids.length} employees`)
       setBroadcastDialog(false)
-      setBroadcastForm({ employee_ids: [], title: '', message: '', type: 'info', link: '' })
+      setBroadcastForm({ user_ids: [], title: '', message: '', type: 'info', link: '' })
       fetchAll()
     } catch (err: unknown) {
       toast.error((err as { detail?: string })?.detail ?? 'Failed to broadcast')
@@ -125,9 +125,9 @@ export default function NotificationsPage() {
   const toggleEmployee = (id: string) => {
     setBroadcastForm((prev) => ({
       ...prev,
-      employee_ids: prev.employee_ids.includes(id)
-        ? prev.employee_ids.filter((e) => e !== id)
-        : [...prev.employee_ids, id],
+      user_ids: prev.user_ids.includes(id)
+        ? prev.user_ids.filter((e) => e !== id)
+        : [...prev.user_ids, id],
     }))
   }
 
@@ -203,7 +203,7 @@ export default function NotificationsPage() {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Employee *</Label>
-              <Select value={sendForm.employee_id} onValueChange={(v) => setSendForm({ ...sendForm, employee_id: v })}>
+              <Select value={sendForm.user_id} onValueChange={(v) => setSendForm({ ...sendForm, user_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
                   {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
@@ -256,11 +256,11 @@ export default function NotificationsPage() {
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Recipients ({broadcastForm.employee_ids.length} selected)</Label>
+                <Label>Recipients ({broadcastForm.user_ids.length} selected)</Label>
                 <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() =>
-                  setBroadcastForm((p) => ({ ...p, employee_ids: p.employee_ids.length === employees.length ? [] : employees.map((e) => e.id) }))
+                  setBroadcastForm((p) => ({ ...p, user_ids: p.user_ids.length === employees.length ? [] : employees.map((e) => e.id) }))
                 }>
-                  {broadcastForm.employee_ids.length === employees.length ? 'Deselect all' : 'Select all'}
+                  {broadcastForm.user_ids.length === employees.length ? 'Deselect all' : 'Select all'}
                 </Button>
               </div>
               <ScrollArea className="h-40 rounded-md border p-2">
@@ -269,7 +269,7 @@ export default function NotificationsPage() {
                     <div key={e.id} className="flex items-center gap-2">
                       <Checkbox
                         id={e.id}
-                        checked={broadcastForm.employee_ids.includes(e.id)}
+                        checked={broadcastForm.user_ids.includes(e.id)}
                         onCheckedChange={() => toggleEmployee(e.id)}
                       />
                       <label htmlFor={e.id} className="text-sm cursor-pointer">{e.full_name}</label>
