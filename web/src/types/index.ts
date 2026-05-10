@@ -1,5 +1,7 @@
 // ── Auth ─────────────────────────────────────────────────────────────────────
 export interface UserLogin { email: string; password: string }
+export type EmployeeRole = "employee" | "manager" | "hr"
+
 export interface UserSignUp { full_name: string; email: string; password: string; role?: string }
 export interface UserSignUpResponse {
   id: string
@@ -50,13 +52,14 @@ export interface EmployeeOut {
   manager_id?: string
   created_by_admin_id: string
   is_active: boolean
+  role?: EmployeeRole
 }
 
 export type EmployeeUpdate = Partial<Omit<EmployeeCreate, 'email'>> & { email?: string }
 export interface EmployeeStatusUpdate { is_active: boolean }
 export interface EmployeeManagerPromotionOut {
   employee: EmployeeOut
-  role: string
+  role: EmployeeRole
 }
 
 export interface IdCardCreate {

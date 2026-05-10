@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr
 
+from schemas.auth import Role
+
 
 class EmployeeCreate(BaseModel):
     user_id: UUID | None = None
@@ -49,6 +51,7 @@ class EmployeeOut(BaseModel):
     manager_id: UUID | None = None
     created_by_admin_id: UUID
     is_active: bool = True
+    role: Role | None = None
 
     class Config:
         from_attributes = True

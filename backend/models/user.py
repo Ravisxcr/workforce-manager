@@ -50,6 +50,12 @@ class Employee(Base, TimestampMixin, IdMixin):
         "User", foreign_keys=[manager_id], backref="managed_employees"
     )
 
+    @property
+    def role(self):
+        if not self.user or not self.user.role:
+            return None
+        return self.user.role.value if isinstance(self.user.role, Role) else self.user.role
+
 
 class User(Base, TimestampMixin, IdMixin):
     __tablename__ = "users"

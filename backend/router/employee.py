@@ -127,12 +127,19 @@ def get_managers(
     )
 
 
-@router.patch("/{employee_id}/make-manager", response_model=MessageResponse)
-def make_employee_manager(
+@router.patch("/{employee_id}/change-role/{role}", response_model=MessageResponse)
+def change_employee_role(
     employee_id: UUID,
+    role: Role,
     db: Session = Depends(get_db),
     current_user: User = Depends(admin_required),
 ):
+    if role == Role.ADMIN:
+        raise HTTPException(
+            status_code=403,
+            detail="You cannot assign admin role",
+        )
+
     db_employee = db.query(Employee).filter(Employee.id == employee_id).first()
     if not db_employee:
         raise HTTPException(status_code=404, detail="Employee not found")
@@ -141,13 +148,13 @@ def make_employee_manager(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    user.role = Role.MANAGER
+    user.role = role
     db.commit()
     db.refresh(db_employee)
     db.refresh(user)
     role = user.role.value if isinstance(user.role, Role) else user.role
     return MessageResponse(
-        message="Employee promoted to manager successfully",
+        message="Employee role updated successfully",
         data={
             "employee": EmployeeOut.model_validate(db_employee),
             "role": role,

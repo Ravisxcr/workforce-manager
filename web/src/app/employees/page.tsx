@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, UserCheck, Search, UserCog } from 'lucide-react'
+import { Plus, Pencil, Trash2, UserCheck, Search } from 'lucide-react'
 import { PageHeader } from '@/components/common/page-header'
 import { DataTable, type Column } from '@/components/common/data-table'
 import { StatusBadge } from '@/components/common/status-badge'
@@ -21,11 +21,11 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import {
   listEmployees, createEmployee, updateEmployee, deleteEmployee,
-  updateEmployeeStatus, getManagers, makeEmployeeManager,
+  updateEmployeeStatus, getManagers, changeEmployeeRole,
 } from '@/api/employee'
 import { addUser } from '@/api/auth'
 import { listDepartments } from '@/api/department'
-import type { EmployeeOut, EmployeeCreate, DepartmentOut } from '@/types'
+import type { EmployeeOut, EmployeeCreate, DepartmentOut, EmployeeRole } from '@/types'
 
 function getInitials(name: string) {
   return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -36,6 +36,12 @@ const EMPTY_FORM: EmployeeCreate = {
   designation: '', department: '', dob: '', gender: '',
   date_joined: '', salary: '', manager_id: '',
 }
+
+const EMPLOYEE_ROLES: { value: EmployeeRole, label: string }[] = [
+  { value: 'employee', label: 'Employee' },
+  { value: 'manager', label: 'Manager' },
+  { value: 'hr', label: 'HR' },
+]
 
 type EmployeeFormState = EmployeeCreate & { password?: string }
 
@@ -128,14 +134,16 @@ export default function EmployeesPage() {
     },
   })
 
-  const makeManagerMutation = useMutation({
-    mutationFn: makeEmployeeManager,
+  const changeRoleMutation = useMutation({
+    mutationFn: (emp: { id: string, role: EmployeeRole }) => changeEmployeeRole(emp.id, emp.role),
     onSuccess: (data) => {
-      toast.success(`${data.employee.full_name} is now a manager`)
+      const roleLabel = EMPLOYEE_ROLES.find((role) => role.value === data.role)?.label ?? data.role
+      toast.success(`${data.employee.full_name} role changed to ${roleLabel}`)
       queryClient.invalidateQueries({ queryKey: ['employees'] })
+      queryClient.invalidateQueries({ queryKey: ['employees', 'managers'] })
     },
     onError: (err: { detail?: string }) => {
-      toast.error(err.detail ?? 'Failed to promote employee')
+      toast.error(err.detail ?? 'Failed to update role')
     },
   })
 
@@ -224,22 +232,32 @@ export default function EmployeesPage() {
     {
       key: 'actions',
       header: '',
-      className: 'w-36',
+      className: 'w-56',
       cell: (e) => {
         const isManager = managers.some((m) => m.id === e.id)
+        const currentRole = e.role ?? (isManager ? 'manager' : 'employee')
 
         return (
           <div className="flex items-center gap-1 justify-end">
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7"
-              title={isManager ? 'Already a manager' : 'Make manager'}
-              disabled={isManager || makeManagerMutation.isPending}
-              onClick={() => makeManagerMutation.mutate(e.id)}
+            <Select
+              value={currentRole}
+              onValueChange={(role) => {
+                const nextRole = role as EmployeeRole
+                if (nextRole !== currentRole) {
+                  changeRoleMutation.mutate({ id: e.id, role: nextRole })
+                }
+              }}
+              disabled={changeRoleMutation.isPending}
             >
-              <UserCog className="h-3.5 w-3.5" />
-            </Button>
+              <SelectTrigger size="sm" className="w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EMPLOYEE_ROLES.map((role) => (
+                  <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(e)}>
               <Pencil className="h-3.5 w-3.5" />
             </Button>
