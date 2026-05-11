@@ -47,6 +47,7 @@ class DesignationUpdate(BaseModel):
     max_salary: float | None = None
     level: int | None = None
 
+
 class DesignationCreate(DesignationUpdate):
     department_id: UUID | None = None
 

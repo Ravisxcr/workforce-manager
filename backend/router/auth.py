@@ -8,17 +8,17 @@ from sqlalchemy.orm import Session
 
 from db.session import get_db
 from models.user import User
+from schemas import MessageResponse
 from schemas.auth import (
     ChangePassword,
     ForgotPassword,
     ResetPassword,
+    Role,
     TokenResponse,
     UserLoginRequest,
     UserSignUp,
     UserSignUpResponse,
-    Role,
 )
-from schemas import MessageResponse
 from services.auth import (
     authenticate_user,
     create_access_token,
@@ -43,7 +43,7 @@ def login(user_login: UserLoginRequest, db: Session = Depends(get_db)):
     token = create_access_token({"sub": user.email, "role": user.role})
     return MessageResponse(
         message="Login successful",
-        data=TokenResponse(access_token=token, token_type="bearer", role=user.role)
+        data=TokenResponse(access_token=token, token_type="bearer", role=user.role),
     )
 
 
@@ -51,12 +51,12 @@ def login(user_login: UserLoginRequest, db: Session = Depends(get_db)):
 def logout(current_user: User = Depends(get_current_active_user)):
     # JWT is stateless; client should discard the token.
     # Server-side blacklisting would require a cache (Redis) — not in scope here.
-    return MessageResponse(
-        message="Logged out successfully"
-    )
+    return MessageResponse(message="Logged out successfully")
 
 
-@router.post("/add-user", status_code=status.HTTP_201_CREATED, response_model=MessageResponse)
+@router.post(
+    "/add-user", status_code=status.HTTP_201_CREATED, response_model=MessageResponse
+)
 def add_user(new_user: UserSignUp, db: Session = Depends(get_db)):
     if settings.ENABLE_ADD_USER is False:
         raise HTTPException(
@@ -79,15 +79,16 @@ def add_user(new_user: UserSignUp, db: Session = Depends(get_db)):
     return MessageResponse(
         message="User added successfully",
         data=UserSignUpResponse(
-            email=user.email,
-            full_name=user.full_name,
-            role=user.role,
-            id=user.id
-        )
+            email=user.email, full_name=user.full_name, role=user.role, id=user.id
+        ),
     )
 
 
-@router.delete("/delete-user/{email}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.delete(
+    "/delete-user/{email}",
+    status_code=status.HTTP_200_OK,
+    response_model=MessageResponse,
+)
 def delete_user(
     email: str,
     db: Session = Depends(get_db),
@@ -115,7 +116,9 @@ def delete_user(
     return MessageResponse(message=f"User {email} deleted")
 
 
-@router.post("/refresh-token", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.post(
+    "/refresh-token", status_code=status.HTTP_200_OK, response_model=MessageResponse
+)
 def refresh_token(
     token: Annotated[str, Depends(oauth2_scheme)], db: Session = Depends(get_db)
 ):
@@ -133,7 +136,7 @@ def refresh_token(
                 access_token=new_token,
                 token_type="bearer",
                 is_admin=user.is_admin,
-            )
+            ),
         )
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token") from None
@@ -149,7 +152,7 @@ def get_user_info(current_user: User = Depends(get_current_active_user)):
             "full_name": current_user.full_name,
             "role": current_user.role.value,
             "is_active": current_user.is_active,
-        }
+        },
     )
 
 
@@ -171,7 +174,9 @@ def forgot_password(body: ForgotPassword, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == body.email).first()
     # Always return 200 to avoid leaking whether an email exists
     if not user:
-        return MessageResponse(message="If that email is registered, a reset token has been sent")
+        return MessageResponse(
+            message="If that email is registered, a reset token has been sent"
+        )
     token = secrets.token_urlsafe(32)
     user.password_reset_token = token
     user.password_reset_expires = datetime.now(UTC) + timedelta(hours=1)
@@ -181,7 +186,7 @@ def forgot_password(body: ForgotPassword, db: Session = Depends(get_db)):
         message="Password reset token generated",
         data={
             "reset_token": token,
-        }
+        },
     )
 
 

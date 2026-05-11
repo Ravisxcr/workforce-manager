@@ -30,11 +30,13 @@ def get_my_notifications(
     )
     return MessageResponse(
         message="Notifications retrieved successfully",
-        data=[NotificationOut.model_validate(n) for n in response]
+        data=[NotificationOut.model_validate(n) for n in response],
     )
 
 
-@router.get("/unread-count", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.get(
+    "/unread-count", status_code=status.HTTP_200_OK, response_model=MessageResponse
+)
 def get_unread_count(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
@@ -48,11 +50,15 @@ def get_unread_count(
     )
     return MessageResponse(
         message="Unread notifications count retrieved successfully",
-        data={"unread": count}
+        data={"unread": count},
     )
 
 
-@router.patch("/{notification_id}/read", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.patch(
+    "/{notification_id}/read",
+    status_code=status.HTTP_200_OK,
+    response_model=MessageResponse,
+)
 def mark_as_read(
     notification_id: UUID,
     db: Session = Depends(get_db),
@@ -73,7 +79,7 @@ def mark_as_read(
     db.refresh(notif)
     return MessageResponse(
         message="Notification marked as read successfully",
-        data=NotificationOut.model_validate(notif)
+        data=NotificationOut.model_validate(notif),
     )
 
 
@@ -90,7 +96,9 @@ def mark_all_read(
     return None
 
 
-@router.post("/send", status_code=status.HTTP_201_CREATED, response_model=MessageResponse)
+@router.post(
+    "/send", status_code=status.HTTP_201_CREATED, response_model=MessageResponse
+)
 def send_notification(
     body: NotificationSend,
     db: Session = Depends(get_db),
@@ -102,7 +110,7 @@ def send_notification(
     db.refresh(notif)
     return MessageResponse(
         message="Notification sent successfully",
-        data=NotificationOut.model_validate(notif)
+        data=NotificationOut.model_validate(notif),
     )
 
 
@@ -127,7 +135,9 @@ def delete_notification(
     return None
 
 
-@router.post("/broadcast", status_code=status.HTTP_201_CREATED, response_model=MessageResponse)
+@router.post(
+    "/broadcast", status_code=status.HTTP_201_CREATED, response_model=MessageResponse
+)
 def broadcast_notification(
     body: NotificationBroadcast,
     db: Session = Depends(get_db),
@@ -150,7 +160,7 @@ def broadcast_notification(
 
     return MessageResponse(
         message="Notifications broadcast successfully",
-        data=[NotificationOut.model_validate(n) for n in notifications]
+        data=[NotificationOut.model_validate(n) for n in notifications],
     )
 
 

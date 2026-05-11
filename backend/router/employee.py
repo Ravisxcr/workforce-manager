@@ -36,7 +36,10 @@ def normalize_employee_relationships(
         db_employee.designation_id if db_employee else None,
     )
 
-    if department_id and not db.query(Department).filter(Department.id == department_id).first():
+    if (
+        department_id
+        and not db.query(Department).filter(Department.id == department_id).first()
+    ):
         raise HTTPException(status_code=404, detail="Department not found")
 
     if not designation_id:
@@ -99,8 +102,8 @@ def create_employee(
     db.commit()
     db.refresh(db_employee)
     return MessageResponse(
-        message="Employee created successfully", 
-        data=EmployeeOut.model_validate(db_employee)
+        message="Employee created successfully",
+        data=EmployeeOut.model_validate(db_employee),
     )
 
 
@@ -114,13 +117,14 @@ def list_employees(
     q = db.query(Employee)
     if department:
         q = q.join(Department, Employee.department_id == Department.id).filter(
-            (Employee.department_id.cast(String) == department) | (Department.name == department)
+            (Employee.department_id.cast(String) == department)
+            | (Department.name == department)
         )
     if is_active is not None:
         q = q.filter(Employee.is_active == is_active)
     return MessageResponse(
         message="Employees retrieved successfully",
-        data=[EmployeeOut.model_validate(r) for r in q.all()]
+        data=[EmployeeOut.model_validate(r) for r in q.all()],
     )
 
 
@@ -145,7 +149,7 @@ def search_employees(
     )
     return MessageResponse(
         message="Employees retrieved successfully",
-        data=[EmployeeOut.model_validate(r) for r in employees]
+        data=[EmployeeOut.model_validate(r) for r in employees],
     )
 
 
@@ -164,7 +168,7 @@ def get_managers(
         return MessageResponse(message="No managers found", data=[])
     return MessageResponse(
         message="Managers retrieved successfully",
-        data=[EmployeeOut.model_validate(r) for r in managers]
+        data=[EmployeeOut.model_validate(r) for r in managers],
     )
 
 
@@ -214,7 +218,7 @@ def get_employee(
         raise HTTPException(status_code=404, detail="Employee not found")
     return MessageResponse(
         message="Employee retrieved successfully",
-        data=EmployeeOut.model_validate(db_employee)
+        data=EmployeeOut.model_validate(db_employee),
     )
 
 
@@ -236,7 +240,7 @@ def update_employee(
     db.refresh(db_employee)
     return MessageResponse(
         message="Employee updated successfully",
-        data=EmployeeOut.model_validate(db_employee)
+        data=EmployeeOut.model_validate(db_employee),
     )
 
 
@@ -255,7 +259,7 @@ def update_employee_status(
     db.refresh(db_employee)
     return MessageResponse(
         message="Employee status updated successfully",
-        data=EmployeeOut.model_validate(db_employee)
+        data=EmployeeOut.model_validate(db_employee),
     )
 
 
@@ -284,8 +288,7 @@ def create_id_card(
     db.commit()
     db.refresh(id_card)
     return MessageResponse(
-        message="ID card created successfully",
-        data=IdCardOut.model_validate(id_card)
+        message="ID card created successfully", data=IdCardOut.model_validate(id_card)
     )
 
 
@@ -297,7 +300,7 @@ def verify_id_card(
     cards = db.query(IdCard).filter(IdCard.user_id == user_id).all()
     return MessageResponse(
         message="ID cards verified successfully",
-        data=[IdCardOut.model_validate(card) for card in cards]
+        data=[IdCardOut.model_validate(card) for card in cards],
     )
 
 
@@ -309,5 +312,5 @@ def get_my_id_cards(
     cards = db.query(IdCard).filter(IdCard.user_id == str(current_user.id)).all()
     return MessageResponse(
         message="ID cards retrieved successfully",
-        data=[IdCardOut.model_validate(card) for card in cards]
+        data=[IdCardOut.model_validate(card) for card in cards],
     )

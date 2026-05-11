@@ -1,16 +1,19 @@
-import uuid
-
 from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from db.base import Base, TimestampMixin, IdMixin
+from db.base import Base, IdMixin, TimestampMixin
 
 
 class Attendance(Base, TimestampMixin, IdMixin):
     __tablename__ = "attendance"
 
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     date = Column(Date, nullable=False, index=True)
     check_in = Column(DateTime, nullable=True)
     check_out = Column(DateTime, nullable=True)

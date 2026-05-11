@@ -1,10 +1,10 @@
 import uuid
+from enum import StrEnum
+
 from pydantic import BaseModel
-from enum import Enum
 
 
-
-class Role(str, Enum):
+class Role(StrEnum):
     EMPLOYEE = "employee"
     MANAGER = "manager"
     HR = "hr"

@@ -1,7 +1,5 @@
 import logging
-import traceback
 
-from schemas import MessageResponse
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +16,7 @@ from router import (
     reimbursement,
     salary,
 )
+from schemas import MessageResponse
 
 app = FastAPI(title="Workforce Manager API", version="2.0.0")
 
@@ -32,15 +31,8 @@ app.add_middleware(
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
-    response = MessageResponse(
-        success=False,
-        message=str(exc.detail),
-        data=None
-    )
-    return JSONResponse(
-        status_code=exc.status_code,
-        content=response.model_dump()
-    )
+    response = MessageResponse(success=False, message=str(exc.detail), data=None)
+    return JSONResponse(status_code=exc.status_code, content=response.model_dump())
 
 
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])

@@ -43,8 +43,7 @@ def create_department(
     db.commit()
     db.refresh(dept)
     return MessageResponse(
-        message="Department created successfully",
-        data=serialize_department(dept)
+        message="Department created successfully", data=serialize_department(dept)
     )
 
 
@@ -63,11 +62,13 @@ def list_departments(
     )
     return MessageResponse(
         message="Departments retrieved successfully",
-        data=[serialize_department(r) for r in response]
+        data=[serialize_department(r) for r in response],
     )
 
 
-@router.put("/{department_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.put(
+    "/{department_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse
+)
 def update_department(
     department_id: UUID,
     body: DepartmentUpdate,
@@ -82,8 +83,7 @@ def update_department(
     db.commit()
     db.refresh(dept)
     return MessageResponse(
-        message="Department updated successfully",
-        data=serialize_department(dept)
+        message="Department updated successfully", data=serialize_department(dept)
     )
 
 
@@ -104,7 +104,9 @@ def delete_department(
 # ── Designation CRUD ──────────────────────────────────────────────────────────
 
 
-@router.post("/designation", status_code=status.HTTP_201_CREATED, response_model=MessageResponse)
+@router.post(
+    "/designation", status_code=status.HTTP_201_CREATED, response_model=MessageResponse
+)
 def create_designation(
     body: DesignationCreate,
     db: Session = Depends(get_db),
@@ -116,11 +118,13 @@ def create_designation(
     db.refresh(desig)
     return MessageResponse(
         message="Designation created successfully",
-        data=DesignationOut.model_validate(desig)
+        data=DesignationOut.model_validate(desig),
     )
 
 
-@router.get("/designation", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.get(
+    "/designation", status_code=status.HTTP_200_OK, response_model=MessageResponse
+)
 def list_designations(
     department_id: UUID = None,
     db: Session = Depends(get_db),
@@ -129,14 +133,18 @@ def list_designations(
     q = db.query(Designation)
     if department_id:
         q = q.filter(Designation.department_id == department_id)
-    
+
     return MessageResponse(
         message="Designations retrieved successfully",
-        data=[DesignationOut.model_validate(r) for r in q.all()]
+        data=[DesignationOut.model_validate(r) for r in q.all()],
     )
 
 
-@router.put("/designation/{designation_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.put(
+    "/designation/{designation_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=MessageResponse,
+)
 def update_designation(
     designation_id: UUID,
     body: DesignationUpdate,
@@ -152,7 +160,7 @@ def update_designation(
     db.refresh(desig)
     return MessageResponse(
         message="Designation updated successfully",
-        data=DesignationOut.model_validate(desig)
+        data=DesignationOut.model_validate(desig),
     )
 
 

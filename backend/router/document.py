@@ -1,5 +1,5 @@
-from datetime import datetime
 import os
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 
 from db.session import get_db
 from models.user import Document, User
-from schemas.document import DocumentOut, DocumentVerify
 from schemas import MessageResponse
+from schemas.document import DocumentOut, DocumentVerify
 from services.auth import admin_required, get_current_active_user
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads")
@@ -32,12 +32,13 @@ DOCUMENT_TYPES = [
 @router.get("/types", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_document_types():
     return MessageResponse(
-        message="Document types retrieved successfully",
-        data={"types": DOCUMENT_TYPES}
+        message="Document types retrieved successfully", data={"types": DOCUMENT_TYPES}
     )
 
 
-@router.post("/upload", status_code=status.HTTP_201_CREATED, response_model=MessageResponse)
+@router.post(
+    "/upload", status_code=status.HTTP_201_CREATED, response_model=MessageResponse
+)
 def upload_document(
     document_type: str = File(...),
     description: str | None = File(None),
@@ -72,8 +73,7 @@ def upload_document(
             ) from e
         raise
     return MessageResponse(
-        message="Document uploaded successfully",
-        data=DocumentOut.model_validate(doc)
+        message="Document uploaded successfully", data=DocumentOut.model_validate(doc)
     )
 
 
@@ -85,8 +85,9 @@ def get_my_documents(
     documents = db.query(Document).filter(Document.user_id == current_user.id).all()
     return MessageResponse(
         message="Documents retrieved successfully",
-        data=[DocumentOut.model_validate(doc) for doc in documents]
+        data=[DocumentOut.model_validate(doc) for doc in documents],
     )
+
 
 @router.get("/pending", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_pending_documents(
@@ -96,8 +97,9 @@ def get_pending_documents(
     documents = db.query(Document).filter(Document.status == "pending").all()
     return MessageResponse(
         message="Pending documents retrieved successfully",
-        data=[DocumentOut.model_validate(doc) for doc in documents]
+        data=[DocumentOut.model_validate(doc) for doc in documents],
     )
+
 
 @router.get("/all", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 def get_all_documents(
@@ -107,11 +109,15 @@ def get_all_documents(
     documents = db.query(Document).all()
     return MessageResponse(
         message="All documents retrieved successfully",
-        data=[DocumentOut.model_validate(doc) for doc in documents]
+        data=[DocumentOut.model_validate(doc) for doc in documents],
     )
 
 
-@router.patch("/{document_id}/verify", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.patch(
+    "/{document_id}/verify",
+    status_code=status.HTTP_200_OK,
+    response_model=MessageResponse,
+)
 def verify_document(
     document_id: UUID,
     verify: DocumentVerify,
@@ -128,8 +134,7 @@ def verify_document(
     db.commit()
     db.refresh(doc)
     return MessageResponse(
-        message="Document verified successfully",
-        data=DocumentOut.model_validate(doc)
+        message="Document verified successfully", data=DocumentOut.model_validate(doc)
     )
 
 

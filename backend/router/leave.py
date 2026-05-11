@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from db.session import get_db
 from models.claims import Leave
 from models.user import User
+from schemas import MessageResponse
 from schemas.leave import (
     LeaveAnalyticsItem,
     LeaveAnalyticsResponse,
@@ -16,8 +17,6 @@ from schemas.leave import (
     LeaveOut,
     LeaveUpdate,
 )
-from schemas import MessageResponse
-from services.auth import get_current_active_user
 from services.auth import admin_required, get_current_active_user
 
 router = APIRouter()
@@ -69,7 +68,6 @@ def create_leave(
     )
 
 
-
 # ── list own + balance ────────────────────────────────────────────────────────
 
 
@@ -93,14 +91,15 @@ def get_leaves(
     result = db.execute(stmt).one()
     return MessageResponse(
         message="Leaves retrieved successfully",
-        data= LeaveListResponse(
+        data=LeaveListResponse(
             data=[_leave_to_out(lv, db) for lv in leaves],
             extra={
                 "casual_leave": result.casual_leave or 0,
                 "sick_leave": result.sick_leave or 0,
                 "earned_leave": result.earned_leave or 0,
             },
-    ))
+        ),
+    )
 
 
 @router.get("/balance", status_code=status.HTTP_200_OK, response_model=MessageResponse)
@@ -143,7 +142,7 @@ def get_leave_balance(
                 "used": earned_used,
                 "remaining": max(earned_total - earned_used, 0),
             },
-        }
+        },
     )
 
 
@@ -185,7 +184,7 @@ def get_leave_calendar(
                 "status": lv.status,
             }
             for lv in leaves
-        ]
+        ],
     )
 
 
@@ -203,14 +202,18 @@ def get_team_leaves(
         q = q.filter(Leave.status == status)
     return MessageResponse(
         message="Team leaves retrieved successfully",
-        data=[LeaveOut.model_validate(_leave_to_out(lv, db)) for lv in q.all()]
+        data=[LeaveOut.model_validate(_leave_to_out(lv, db)) for lv in q.all()],
     )
 
 
 # ── approve ───────────────────────────────────────────────────────────────────
 
 
-@router.put("/approve/{leave_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.put(
+    "/approve/{leave_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=MessageResponse,
+)
 def approve_leave(
     leave_id: UUID,
     db: Session = Depends(get_db),
@@ -218,10 +221,13 @@ def approve_leave(
 ):
     leave_obj = db.query(Leave).filter(Leave.id == leave_id).first()
     if not leave_obj:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Leave not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Leave not found"
+        )
     if leave_obj.status not in ("pending",):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Only pending leaves can be approved"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only pending leaves can be approved",
         )
     leave_obj.status = "approved"
     leave_obj.approved_by = current_user.id
@@ -229,11 +235,13 @@ def approve_leave(
     db.refresh(leave_obj)
     return MessageResponse(
         message="Leave approved successfully",
-        data=LeaveOut.model_validate(_leave_to_out(leave_obj, db))
+        data=LeaveOut.model_validate(_leave_to_out(leave_obj, db)),
     )
 
 
-@router.put("/reject/{leave_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.put(
+    "/reject/{leave_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse
+)
 def reject_leave(
     leave_id: UUID,
     db: Session = Depends(get_db),
@@ -241,10 +249,13 @@ def reject_leave(
 ):
     leave_obj = db.query(Leave).filter(Leave.id == leave_id).first()
     if not leave_obj:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Leave not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Leave not found"
+        )
     if leave_obj.status not in ("pending",):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Only pending leaves can be rejected"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only pending leaves can be rejected",
         )
     leave_obj.status = "rejected"
     leave_obj.approved_by = current_user.id
@@ -252,7 +263,7 @@ def reject_leave(
     db.refresh(leave_obj)
     return MessageResponse(
         message="Leave rejected successfully",
-        data=LeaveOut.model_validate(_leave_to_out(leave_obj, db))
+        data=LeaveOut.model_validate(_leave_to_out(leave_obj, db)),
     )
 
 
@@ -264,7 +275,9 @@ def admin_delete_leave(
 ):
     leave_obj = db.query(Leave).filter(Leave.id == leave_id).first()
     if not leave_obj:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Leave not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Leave not found"
+        )
     db.delete(leave_obj)
     db.commit()
     return None
@@ -286,10 +299,13 @@ def update_leave(
         .first()
     )
     if not leave_obj:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Leave not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Leave not found"
+        )
     if leave_obj.status != "pending":
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Only pending leaves can be updated"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only pending leaves can be updated",
         )
     for field, value in body.dict(exclude_unset=True).items():
         setattr(leave_obj, field, value)
@@ -313,10 +329,13 @@ def delete_leave(
         .first()
     )
     if not leave_obj:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Leave not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Leave not found"
+        )
     if leave_obj.status != "pending":
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Only pending leaves can be deleted"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only pending leaves can be deleted",
         )
     db.delete(leave_obj)
     db.commit()
@@ -326,7 +345,11 @@ def delete_leave(
 # ── cancellation ──────────────────────────────────────────────────────────────
 
 
-@router.put("/cancel-request/{leave_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.put(
+    "/cancel-request/{leave_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=MessageResponse,
+)
 def request_leave_cancellation(
     leave_id: UUID,
     db: Session = Depends(get_db),
@@ -338,7 +361,9 @@ def request_leave_cancellation(
         .first()
     )
     if not leave_obj:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Leave not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Leave not found"
+        )
     now = datetime.now().date()
     current_time = datetime.now().time()
     if now > leave_obj.start_date or (
@@ -353,11 +378,15 @@ def request_leave_cancellation(
     db.refresh(leave_obj)
     return MessageResponse(
         message="Cancellation request submitted successfully",
-        data=LeaveOut.model_validate(_leave_to_out(leave_obj, db))
+        data=LeaveOut.model_validate(_leave_to_out(leave_obj, db)),
     )
 
 
-@router.put("/cancel-approve/{leave_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.put(
+    "/cancel-approve/{leave_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=MessageResponse,
+)
 def approve_leave_cancellation(
     leave_id: UUID,
     db: Session = Depends(get_db),
@@ -365,23 +394,30 @@ def approve_leave_cancellation(
 ):
     leave_obj = db.query(Leave).filter(Leave.id == leave_id).first()
     if not leave_obj:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Leave not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Leave not found"
+        )
     if not leave_obj.cancellation_requested:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No cancellation request found")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No cancellation request found",
+        )
     leave_obj.cancellation_approved = True
     leave_obj.status = "cancelled"
     db.commit()
     db.refresh(leave_obj)
     return MessageResponse(
         message="Cancellation approved successfully",
-        data=LeaveOut.model_validate(_leave_to_out(leave_obj, db))
+        data=LeaveOut.model_validate(_leave_to_out(leave_obj, db)),
     )
 
 
 # ── analytics (admin) ─────────────────────────────────────────────────────────
 
 
-@router.get("/analytics", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.get(
+    "/analytics", status_code=status.HTTP_200_OK, response_model=MessageResponse
+)
 def leave_analytics(
     db: Session = Depends(get_db),
     current_user: User = Depends(admin_required),
@@ -405,5 +441,5 @@ def leave_analytics(
         )
     return MessageResponse(
         message="Analytics retrieved successfully",
-        data=LeaveAnalyticsResponse(analytics=analytics)
+        data=LeaveAnalyticsResponse(analytics=analytics),
     )

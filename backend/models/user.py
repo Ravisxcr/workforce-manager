@@ -1,22 +1,21 @@
-import uuid
 from datetime import datetime
-from enum import Enum
 
 from sqlalchemy import (
     Boolean,
     Column,
     Date,
-    Enum as SAEnum,
     DateTime,
     ForeignKey,
-    Integer,
     String,
     UniqueConstraint,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from db.base import Base, TimestampMixin, IdMixin
+from db.base import Base, IdMixin, TimestampMixin
 from schemas.auth import Role
 
 
@@ -24,16 +23,28 @@ from schemas.auth import Role
 class Employee(Base, TimestampMixin, IdMixin):
     __tablename__ = "employees"
 
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    user = relationship("User", back_populates="employee_profile", foreign_keys=[user_id])
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    user = relationship(
+        "User", back_populates="employee_profile", foreign_keys=[user_id]
+    )
     email = Column(String, unique=True, index=True, nullable=False)
     full_name = Column(String, nullable=False)
     phone = Column(String, nullable=True)
     address = Column(String, nullable=True)
     dob = Column(Date, nullable=True)
     gender = Column(String, nullable=True)
-    department_id = Column(UUID(as_uuid=True), ForeignKey("departments.id", ondelete="SET NULL"), nullable=True)
-    designation_id = Column(UUID(as_uuid=True), ForeignKey("designations.id", ondelete="SET NULL"), nullable=True)
+    department_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("departments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    designation_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("designations.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     department_rel = relationship("Department", foreign_keys=[department_id])
     designation_rel = relationship("Designation", foreign_keys=[designation_id])
     date_joined = Column(Date, nullable=True)
@@ -56,7 +67,9 @@ class Employee(Base, TimestampMixin, IdMixin):
     def role(self):
         if not self.user or not self.user.role:
             return None
-        return self.user.role.value if isinstance(self.user.role, Role) else self.user.role
+        return (
+            self.user.role.value if isinstance(self.user.role, Role) else self.user.role
+        )
 
     @property
     def department(self):
@@ -79,26 +92,69 @@ class User(Base, TimestampMixin, IdMixin):
     password_reset_expires = Column(DateTime, nullable=True)
 
     employee_profile = relationship(
-        "Employee", 
-        back_populates="user", 
-        uselist=False, 
+        "Employee",
+        back_populates="user",
+        uselist=False,
         cascade="all, delete-orphan",
-        foreign_keys="Employee.user_id"
+        foreign_keys="Employee.user_id",
     )
-    attendances = relationship("Attendance", back_populates="user", cascade="all, delete-orphan", foreign_keys="Attendance.user_id")
-    leaves = relationship("Leave", back_populates="user", cascade="all, delete-orphan", foreign_keys="Leave.user_id")
-    reimbursements = relationship("Reimbursement", back_populates="user", cascade="all, delete-orphan", foreign_keys="Reimbursement.user_id")
-    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan", foreign_keys="Notification.user_id")
-    salary_slips = relationship("SalarySlip", back_populates="user", cascade="all, delete-orphan", foreign_keys="SalarySlip.user_id")
-    salary_history = relationship("SalaryHistory", back_populates="user", cascade="all, delete-orphan", foreign_keys="SalaryHistory.user_id")
-    documents = relationship("Document", back_populates="owner", cascade="all, delete-orphan", foreign_keys="Document.user_id")
-    id_card = relationship("IdCard", back_populates="user", uselist=False, cascade="all, delete-orphan", foreign_keys="IdCard.user_id")
+    attendances = relationship(
+        "Attendance",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="Attendance.user_id",
+    )
+    leaves = relationship(
+        "Leave",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="Leave.user_id",
+    )
+    reimbursements = relationship(
+        "Reimbursement",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="Reimbursement.user_id",
+    )
+    notifications = relationship(
+        "Notification",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="Notification.user_id",
+    )
+    salary_slips = relationship(
+        "SalarySlip",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="SalarySlip.user_id",
+    )
+    salary_history = relationship(
+        "SalaryHistory",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="SalaryHistory.user_id",
+    )
+    documents = relationship(
+        "Document",
+        back_populates="owner",
+        cascade="all, delete-orphan",
+        foreign_keys="Document.user_id",
+    )
+    id_card = relationship(
+        "IdCard",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+        foreign_keys="IdCard.user_id",
+    )
 
 
 class IdCard(Base, TimestampMixin, IdMixin):
     __tablename__ = "id_cards"
 
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     name = Column(String, nullable=False)
     designation = Column(String, nullable=False)
     department = Column(String, nullable=False)
@@ -113,12 +169,12 @@ class IdCard(Base, TimestampMixin, IdMixin):
 class Document(Base, TimestampMixin, IdMixin):
     __tablename__ = "documents"
     __table_args__ = (
-        UniqueConstraint(
-            "user_id", "document_type", name="uq_user_document_type"
-        ),
+        UniqueConstraint("user_id", "document_type", name="uq_user_document_type"),
     )
 
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     owner = relationship("User", back_populates="documents", foreign_keys=[user_id])
     document_type = Column(String, nullable=False)
     description = Column(String, nullable=True)

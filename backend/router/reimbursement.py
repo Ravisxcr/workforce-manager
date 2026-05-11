@@ -49,7 +49,7 @@ def create_reimbursement(
     db.refresh(db_reim)
     return MessageResponse(
         message="Reimbursement created successfully",
-        data=ReimbursementOut.model_validate(db_reim)
+        data=ReimbursementOut.model_validate(db_reim),
     )
 
 
@@ -60,11 +60,14 @@ def get_my_reimbursements(
 ):
     return MessageResponse(
         message="My reimbursements retrieved successfully",
-        data=[ReimbursementOut.model_validate(reim) for reim in (
-            db.query(Reimbursement)
-            .filter(Reimbursement.user_id == current_user.id)
-            .all()
-        )]
+        data=[
+            ReimbursementOut.model_validate(reim)
+            for reim in (
+                db.query(Reimbursement)
+                .filter(Reimbursement.user_id == current_user.id)
+                .all()
+            )
+        ],
     )
 
 
@@ -79,11 +82,16 @@ def list_all_reimbursements(
         q = q.filter(Reimbursement.status == status)
     return MessageResponse(
         message="All reimbursements retrieved successfully",
-        data=[ReimbursementOut.model_validate(reim) for reim in q.order_by(Reimbursement.date.desc()).all()]
+        data=[
+            ReimbursementOut.model_validate(reim)
+            for reim in q.order_by(Reimbursement.date.desc()).all()
+        ],
     )
 
 
-@router.get("/analytics", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.get(
+    "/analytics", status_code=status.HTTP_200_OK, response_model=MessageResponse
+)
 def get_reimbursement_analytics(
     db: Session = Depends(get_db),
     current_user: User = Depends(admin_required),
@@ -98,11 +106,15 @@ def get_reimbursement_analytics(
             total_rejected=sum(1 for c in claims if c.status == "rejected"),
             total_amount=str(sum(float(c.amount) for c in claims if c.amount)),
             claims=claims,
-        )
+        ),
     )
 
 
-@router.get("/{reimbursement_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.get(
+    "/{reimbursement_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=MessageResponse,
+)
 def get_reimbursement(
     reimbursement_id: UUID,
     db: Session = Depends(get_db),
@@ -115,11 +127,15 @@ def get_reimbursement(
         raise HTTPException(status_code=403, detail="Not authorized")
     return MessageResponse(
         message="Reimbursement retrieved successfully",
-        data=ReimbursementOut.model_validate(reim)
+        data=ReimbursementOut.model_validate(reim),
     )
 
 
-@router.put("/{reimbursement_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.put(
+    "/{reimbursement_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=MessageResponse,
+)
 def update_reimbursement(
     reimbursement_id: UUID,
     body: ReimbursementUpdate,
@@ -146,7 +162,7 @@ def update_reimbursement(
     db.refresh(reim)
     return MessageResponse(
         message="Reimbursement updated successfully",
-        data=ReimbursementOut.model_validate(reim)
+        data=ReimbursementOut.model_validate(reim),
     )
 
 
@@ -175,7 +191,11 @@ def delete_reimbursement(
     return None
 
 
-@router.post("/approve/{reimbursement_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
+@router.post(
+    "/approve/{reimbursement_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=MessageResponse,
+)
 def approve_reimbursement(
     reimbursement_id: UUID,
     update: ReimbursementUpdateStatus,
@@ -195,5 +215,5 @@ def approve_reimbursement(
     db.refresh(reim)
     return MessageResponse(
         message="Reimbursement approved successfully",
-        data=ReimbursementOut.model_validate(reim)
+        data=ReimbursementOut.model_validate(reim),
     )
