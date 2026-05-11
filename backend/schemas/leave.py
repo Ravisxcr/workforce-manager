@@ -11,10 +11,16 @@ class LeaveCreate(BaseModel):
     reason: str = ""
 
 
+class LeaveUpdate(BaseModel):
+    start_date: date | None = None
+    end_date: date | None = None
+    type: str | None = None
+    reason: str | None = None
+
 
 class LeaveOut(LeaveCreate):
     id: UUID
-    employee_id: UUID
+    user_id: UUID
     start_date: date
     end_date: date
     reason: str = ""
@@ -24,13 +30,14 @@ class LeaveOut(LeaveCreate):
     cancellation_requested: bool = False
     cancellation_approved: bool = False
 
+
 class LeaveListResponse(BaseModel):
     data: list[LeaveOut]
     extra: dict[str, int]
 
 
 class LeaveAnalyticsItem(BaseModel):
-    employee_id: str
+    user_id: str
     employee_name: str
     approved_leaves: int
     cancelled_leaves: int

@@ -1,14 +1,25 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 import logging
 
-from db.base import Base
-from db.session import engine
-from router import (auth, document, employee, leave, reimbursement, salary)
+import uvicorn
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
-app = FastAPI()
+from router import (
+    attendance,
+    auth,
+    department,
+    document,
+    employee,
+    leave,
+    notification,
+    reimbursement,
+    salary,
+)
+from schemas import MessageResponse
 
-# Allow all CORS (all origins, methods, headers)
+app = FastAPI(title="Workforce Manager API", version="2.0.0")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,17 +29,25 @@ app.add_middleware(
 )
 
 
-# Create tables if they do not exist
-Base.metadata.create_all(bind=engine)
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    response = MessageResponse(success=False, message=str(exc.detail), data=None)
+    return JSONResponse(status_code=exc.status_code, content=response.model_dump())
 
-app.include_router(auth.router, prefix="/auth", tags=["auth"])
-app.include_router(salary.router, prefix="/admin", tags=["salary"])
-app.include_router(leave.router, prefix="/leave", tags=["leave"])
-app.include_router(employee.router, prefix="/employee", tags=["employee"])
-app.include_router(reimbursement.router, prefix="/reimbursement", tags=["Reimbursement"])
-app.include_router(document.router, prefix="/document", tags=["Document Verification"])
+
+app.include_router(auth.router, prefix="/auth", tags=["Auth"])
+app.include_router(employee.router, prefix="/employee", tags=["Employee"])
+app.include_router(attendance.router, prefix="/attendance", tags=["Attendance"])
+app.include_router(leave.router, prefix="/leave", tags=["Leave"])
+app.include_router(
+    reimbursement.router, prefix="/reimbursement", tags=["Reimbursement"]
+)
+app.include_router(document.router, prefix="/document", tags=["Document"])
+app.include_router(salary.router, prefix="/salary", tags=["Salary"])
+app.include_router(department.router, prefix="/department", tags=["Department"])
+app.include_router(notification.router, prefix="/notification", tags=["Notification"])
 
 if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True, log_level=logging.DEBUG)
+    uvicorn.run(
+        "main:app", host="0.0.0.0", port=8000, reload=True, log_level=logging.DEBUG
+    )

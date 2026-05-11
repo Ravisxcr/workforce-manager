@@ -1,46 +1,70 @@
-from typing import Optional
+from datetime import date
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr
 
+from schemas.auth import Role
+
 
 class EmployeeCreate(BaseModel):
+    user_id: UUID | None = None
     full_name: str
     email: EmailStr
-    phone: Optional[str] = None
-    address: Optional[str] = None
-    position: Optional[str] = None
-    department: Optional[str] = None
-    manager_id: Optional[UUID] = None
+    phone: str | None = None
+    address: str | None = None
+    designation_id: UUID | None = None
+    department_id: UUID | None = None
+    dob: date | None = None
+    gender: str | None = None
+    date_joined: date | None = None
+    salary: str | None = None
+    manager_id: UUID | None = None
 
 
 class EmployeeUpdate(BaseModel):
-    full_name: Optional[str] = None
-    email: Optional[EmailStr] = None
-    phone: Optional[str] = None
-    address: Optional[str] = None
-    position: Optional[str] = None
-    department: Optional[str] = None
-    manager_id: Optional[UUID] = None
+    full_name: str | None = None
+    email: EmailStr | None = None
+    phone: str | None = None
+    address: str | None = None
+    designation_id: UUID | None = None
+    department_id: UUID | None = None
+    dob: date | None = None
+    gender: str | None = None
+    date_joined: date | None = None
+    salary: str | None = None
+    manager_id: UUID | None = None
 
 
 class EmployeeOut(BaseModel):
     id: UUID
+    user_id: UUID
     full_name: str
     email: EmailStr
-    phone: Optional[str]
-    address: Optional[str]
-    position: Optional[str]
-    department: Optional[str]
-    manager_id: Optional[UUID]
-    admin_id: UUID
+    phone: str | None = None
+    address: str | None = None
+    designation_id: UUID | None = None
+    department_id: UUID | None = None
+    designation: str | None = None
+    department: str | None = None
+    dob: date | None = None
+    gender: str | None = None
+    date_joined: date | None = None
+    salary: str | None = None
+    manager_id: UUID | None = None
+    created_by_admin_id: UUID
+    is_active: bool = True
+    role: Role | None = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+
+class EmployeeStatusUpdate(BaseModel):
+    is_active: bool
 
 
 class IdCardCreate(BaseModel):
-    employee_id: str
+    user_id: str
     name: str
     designation: str
     department: str
@@ -51,3 +75,6 @@ class IdCardCreate(BaseModel):
 
 class IdCardOut(IdCardCreate):
     id: str
+
+    class Config:
+        from_attributes = True
