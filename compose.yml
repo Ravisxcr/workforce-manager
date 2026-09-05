@@ -1,0 +1,48 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: workforce-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:////app/data/hr_app.db
+      - SECRET_KEY=${SECRET_KEY:-insecure_default_secret_key_change_me}
+      - ALGORITHM=${ALGORITHM:-HS256}
+      - ENABLE_ADD_USER=${ENABLE_ADD_USER:-true}
+      - ENABLE_DELETE_USER=${ENABLE_DELETE_USER:-true}
+    volumes:
+      - ./backend:/app
+      - backend-data:/app/data
+      - backend-uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: workforce-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  backend-data:
+    name: workforce-backend-data
+  backend-uploads:
+    name: workforce-backend-uploads
