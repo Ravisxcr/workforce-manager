@@ -52,7 +52,7 @@ def upgrade() -> None:
                     'email': default_email,
                     'full_name': default_name,
                     'hashed_password': hash_password(default_password),
-                    'role': Role.ADMIN.value,
+                    'role': 'ADMIN',
                     'is_active': True,
                 }
             ]
