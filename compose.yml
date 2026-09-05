@@ -13,6 +13,9 @@ services:
       - ALGORITHM=${ALGORITHM:-HS256}
       - ENABLE_ADD_USER=${ENABLE_ADD_USER:-true}
       - ENABLE_DELETE_USER=${ENABLE_DELETE_USER:-true}
+      - DEFAULT_USER_EMAIL=${DEFAULT_USER_EMAIL:-user@example.com}
+      - DEFAULT_USER_PASSWORD=${DEFAULT_USER_PASSWORD:-strongpassword}
+      - DEFAULT_USER_FULL_NAME=${DEFAULT_USER_FULL_NAME:-Admin User}
     volumes:
       - ./backend:/app
       - backend-data:/app/data
@@ -34,6 +37,8 @@ services:
       - "3000:3000"
     environment:
       - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+      - VITE_DEFAULT_EMAIL=${DEFAULT_USER_EMAIL:-user@example.com}
+      - VITE_DEFAULT_PASSWORD=${DEFAULT_USER_PASSWORD:-strongpassword}
     volumes:
       - ./web:/app
       - /app/node_modules

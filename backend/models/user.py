@@ -91,6 +91,13 @@ class User(Base, TimestampMixin, IdMixin):
     password_reset_token = Column(String, nullable=True)
     password_reset_expires = Column(DateTime, nullable=True)
 
+    @property
+    def is_admin(self) -> bool:
+        if not self.role:
+            return False
+        role_val = self.role.value if hasattr(self.role, "value") else str(self.role)
+        return role_val.lower() == "admin"
+
     employee_profile = relationship(
         "Employee",
         back_populates="user",
