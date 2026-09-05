@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv add *)",
+      "Bash(uv run *)",
+      "Bash(ls \"e:\\\\My Code\\\\workforce-manager\\\\backend\\\\\"*.db 2>/dev/null || echo \"no .db files found\")",
+      "Read(//e/My Code/workforce-manager/**)"
+    ]
+  }
+}

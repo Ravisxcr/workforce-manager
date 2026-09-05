@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs ls -la)",
+      "Bash(grep -rn \"balance\" /home/ravi/code/workforce-manager/backend/ --include=\"*.py\" | grep -i \"def\\\\|return\\\\|route\\\\|router\" | head -20)",
+      "Read(//home/ravi/code/workforce-manager/backend/**)",
+      "Bash(python -c ' *)",
+      "Bash(bun run *)"
+    ],
+    "additionalDirectories": [
+      "/home/ravi/code/workforce-manager/backend"
+    ]
+  }
+}

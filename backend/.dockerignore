@@ -1,0 +1,43 @@
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+
+# Tests & linters
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local database and uploaded files
+*.db
+*.sqlite3
+data/
+uploads/
+
+# Tooling & version control
+.git/
+.gitignore
+.claude/
